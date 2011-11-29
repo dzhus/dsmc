@@ -77,30 +77,54 @@ timeToHit (Particle (x, y, z) (vx, vy, vz)) (Plane (a, b, c, d)) =
 -- (not positive)
 reflectSpecular :: Particle -> Vector -> Time -> Particle
 reflectSpecular p n t =
-    move (-1 * t) (move t p){speed = v <-> (n *> (v <*> n) *> 2)}
+    move (-1 * t) p{speed = v <-> (n *> (v <*> n) *> 2)}
     where
       v = speed p
 
 -- Return Maybe 2-tuple containing time until with hit body and closest
 -- object to hit. If no objects are hit so far, return Nothing.
-hit :: Particle -> Body -> Maybe (Time, Object)
-hit p (Primitive o) = 
+tryHit :: Particle -> Body -> Maybe (Time, Object)
+tryHit p (Primitive obj) = 
     let
-        t = timeToHit p o 
+        t = timeToHit p obj 
     in
       if t > 0
       then Nothing
-      else Just (t, o)
+      else Just (t, obj)
 
-hit p (Intersection b1 b2) =
+tryHit p (Intersection b1 b2) =
     let
-        r1 = hit p b1
-        r2 = hit p b2
+        r1 = tryHit p b1
+        r2 = tryHit p b2
     in
       case (r1, r2) of
-        (Just (t1, o1), Just (t2, o2)) -> if abs t1 < abs t2
-                                          then r1
-                                          else r2
+        -- When last object is hit, the whole intersection is hit
+        (Just (t1, obj1), Just (t2, obj2)) -> if abs t1 < abs t2
+                                              then r1
+                                              else r2
         _ -> Nothing
-                                              
-           
+
+tryHit p (Union b1 b2) =
+    let
+        r1 = tryHit p b1
+        r2 = tryHit p b2
+    in
+      case (r1, r2) of
+        (Nothing, Nothing) -> Nothing
+        (r1, Nothing) -> r1
+        (Nothing, r2) -> r2
+        -- When first object is hit, the union is hit
+        (Just (t1, obj1), Just (t2, obj2)) -> if abs t1 > abs t2
+                                              then r1
+                                              else r2
+
+-- Return particle after possible collision with body
+hit :: Particle -> Body -> Particle
+hit p b = 
+    let
+        r = tryHit p b
+    in
+      case r of
+        Just (t, obj) -> reflectSpecular particleAtHit (normal obj (position particleAtHit)) t
+                         where particleAtHit = move t p
+        Nothing -> p
