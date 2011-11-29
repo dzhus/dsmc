@@ -20,7 +20,7 @@ data Domain = Box Double Double Double Double Double Double
 
 -- 
 data Object = Sphere Point Double
-            | Plane (Double, Double, Double, Double)
+            | Plane Vector Double
 
 -- Body is a composition of objects
 data Body = Primitive Object
@@ -29,7 +29,7 @@ data Body = Primitive Object
 
 instance Show Object where
          show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
-         show (Plane (a, b, c, d)) = "P" ++ (show (a, b, c, d))
+         show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
 
 instance Show Body where
          show (Primitive a) = show a
@@ -64,13 +64,13 @@ clip domain particles = filter (inDomain domain) particles
 
 -- Normalized normal vector to surface at point
 normal :: Object -> Point -> Vector
-normal (Plane (a, b, c, d)) _ = normalize (a, b, c)
+normal (Plane n d) _ = normalize n
 
 -- Calculate time until object is hit by particle. If not positive, then
 -- particle is inside the object.
 timeToHit :: Particle -> Object -> Time
-timeToHit (Particle (x, y, z) (vx, vy, vz)) (Plane (a, b, c, d)) =
-    - (a * x + b * y + c * z + d) / (a * vx + b * vy + c * vz)
+timeToHit (Particle pos v) (Plane n d) =
+    (pos <*> n + d) / abs(n <*> v)
 
 -- Update particle position and velocity after specular hit given a
 -- normalized normal vector of surface in hit point and time since hit
