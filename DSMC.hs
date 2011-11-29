@@ -60,19 +60,17 @@ inDomain (Box xmin xmax ymin ymax zmin zmax) (Particle (x, y, z) v) =
 
 clip domain particles = filter (inDomain domain) particles
 
--- Deflect particle from object.
---
--- Return 2-tuple which contains and new particle with position and
--- velocity updated after hit.
-hit :: Particle -> Object -> (Bool, Particle)
-hit (Particle (x, y, z) (vx, vy, vz)) (Plane (a, b, c, d)) = 
-    let
-        t = - (a * x + b * y + c * z + d) / (a * vx + b * vy + c * vz)
-        p = (Particle (x, y, z) (vx, vy, vz)) 
-    in
-        if t > 0 then
-           (False, p)
-        else
-           (True, move (-1 * t) (move t p){speed = (vx, vy, vz) <-> ((n *> 2) *> ((vx, vy, vz) <*> n))})
-           where
-                n = normalize (a, b, c)
+-- Calculate time until object is hit by particle. If negative, then
+-- particle is inside the object.
+timeToHit :: Particle -> Object -> Double
+timeToHit (Particle (x, y, z) (vx, vy, vz)) (Plane (a, b, c, d)) =
+          - (a * x + b * y + c * z + d) / (a * vx + b * vy + c * vz)
+
+-- Update particle position and velocity after specular hit given a
+-- normalized normal vector of surface in hit point and time since hit
+-- (negative)
+reflectSpecular :: Particle -> Vector -> Double -> Particle
+reflectSpecular p n t =
+                move (-1 * t) (move t p){speed = v <-> (n *> (v <*> n) *> 2)}
+                where
+                  v = speed p
