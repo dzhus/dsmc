@@ -67,13 +67,39 @@ clip domain particles = filter (inDomain domain) particles
 -- Normalized normal vector to surface at point
 normal :: Object -> Point -> Vector
 normal (Plane n d) _ = normalize n
+normal (Sphere c r) p = normalize (p <-> c)
+
+-- Solve quadratic equation
+solveq :: (Double, Double, Double) -> [Double]
+solveq (a, b, c)
+    | (d < 0) = []
+    | (d > 0) = [(- b - sqrt d) / (2 * a), (- b + sqrt d) / (2 * a)]
+    | otherwise = [- b / (2 * a)]
+    where
+      d = b * b - 4 * a * c
 
 -- Calculate time until object is hit by particle. If not positive,
 -- then particle is inside the object. Moving particle for this time
--- results in hit point.
-timeToHit :: Particle -> Object -> Time
-timeToHit (Particle pos v) (Plane n d) =
-    (pos <*> n + d) / abs(n <*> v)
+-- results in hit point. If particle will never hit the object,
+-- Nothing is returned.
+timeToHit :: Particle -> Object -> Maybe Time
+timeToHit (Particle pos v) (Plane n d)
+    | f == 0 = Nothing
+    | otherwise = Just ((pos <*> n + d) / f)
+    where
+      f = abs(n <*> v)
+
+timeToHit (Particle pos v) (Sphere c r) =
+    if (distance pos c) < r
+    then
+        let
+            d = pos <-> c
+            roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
+        in
+          if null roots
+          then Nothing
+          else Just (minimum roots)
+    else Nothing
 
 -- Update particle position and velocity after specular hit given a
 -- normalized normal vector of surface in hit point and time since hit
@@ -86,9 +112,10 @@ reflectSpecular p n t =
 
 -- We have to preserve time until hit even if no hit occured to
 -- properly process object complements
-data HitResult = Hit Time Object
-               | NoHit Time Object
-               deriving (Eq, Ord)
+data HitResult = BeenHit Time Object
+               | ToHit Time Object
+               | NeverHit
+               deriving (Eq, Ord, Show)
 
 -- Return HitResult containing Hit with time since hit with body and
 -- object which was hit first. Return NoHit if no objects are hit so
@@ -96,19 +123,22 @@ data HitResult = Hit Time Object
 tryHit :: Particle -> Body -> HitResult
 tryHit p (Primitive obj) = 
     let
-        t = timeToHit p obj
+        mt = timeToHit p obj
     in
-      if t > 0
-      then NoHit t obj
-      else Hit (abs t) obj
+      case mt of
+        (Just t) ->  if t > 0
+                     then ToHit t obj
+                     else BeenHit (abs t) obj
+        Nothing -> NeverHit
 
 tryHit p (Complement body) =
     let
         hr = tryHit p body
     in
       case hr of 
-        (NoHit t obj) -> Hit t obj
-        (Hit t obj) -> (NoHit t obj)
+        (ToHit t obj) -> BeenHit t obj
+        (BeenHit t obj) -> (ToHit t obj)
+        _ -> hr
 
 tryHit p (Intersection b1 b2) =
     let
@@ -116,10 +146,10 @@ tryHit p (Intersection b1 b2) =
         hr2 = tryHit p b2
     in
       case (hr1, hr2) of
-        (Hit t1 obj1, Hit t2 obj2) -> if t1 < t2
-                                      then Hit t1 obj1
-                                      else Hit t2 obj2
-        
+        (BeenHit t1 obj1, BeenHit t2 obj2) -> min hr1 hr2
+        (NeverHit, NeverHit) -> NeverHit
+        (NeverHit, _) -> hr2
+        (_, NeverHit) -> hr1
         _ -> max hr1 hr2
 
 tryHit p (Union b1 b2) =
@@ -128,10 +158,13 @@ tryHit p (Union b1 b2) =
         hr2 = tryHit p b2
     in
       case (hr1, hr2) of
-        (NoHit t1 obj1, NoHit t2 obj2) -> max hr1 hr2
-        (Hit _ _, Hit _ _) -> max hr1 hr2
-        (Hit _ _, NoHit _ _) -> hr1
-        (NoHit _ _, Hit _ _) -> hr2
+        (BeenHit _ _, BeenHit _ _) -> max hr1 hr2
+        (BeenHit _ _, _) -> hr1
+        (_, BeenHit _ _) -> hr2
+        (ToHit t1 obj1, ToHit t2 obj2) -> max hr1 hr2
+        (NeverHit, NeverHit) -> NeverHit
+        (NeverHit, _) -> hr2
+        (_, NeverHit) -> hr1
 
 -- Return particle after possible collision with body
 hit :: Particle -> Body -> Particle
@@ -140,7 +173,7 @@ hit p b =
         hr = tryHit p b
     in
       case hr of
-        (Hit th obj) -> 
+        (BeenHit th obj) -> 
             let
                 t = (-th)
                 particleAtHit = move t p
