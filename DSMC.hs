@@ -21,11 +21,13 @@ data Domain = Box Double Double Double Double Double Double
 -- 
 data Object = Sphere Point Double
             | Plane Vector Double
+            deriving (Eq, Ord)
 
 -- Body is a composition of objects
 data Body = Primitive Object
           | Union Body Body
           | Intersection Body Body
+          | Complement Body
 
 instance Show Object where
          show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
@@ -66,8 +68,9 @@ clip domain particles = filter (inDomain domain) particles
 normal :: Object -> Point -> Vector
 normal (Plane n d) _ = normalize n
 
--- Calculate time until object is hit by particle. If not positive, then
--- particle is inside the object.
+-- Calculate time until object is hit by particle. If not positive,
+-- then particle is inside the object. Moving particle for this time
+-- results in hit point.
 timeToHit :: Particle -> Object -> Time
 timeToHit (Particle pos v) (Plane n d) =
     (pos <*> n + d) / abs(n <*> v)
@@ -81,50 +84,46 @@ reflectSpecular p n t =
     where
       v = speed p
 
--- Return Maybe 2-tuple containing time until with hit body and closest
--- object to hit. If no objects are hit so far, return Nothing.
-tryHit :: Particle -> Body -> Maybe (Time, Object)
+-- Return 2-tuple containing negative time since hit with body and
+-- object which was hit first. If no objects are hit so far, time is
+-- positive.
+tryHit :: Particle -> Body -> (Time, Object)
 tryHit p (Primitive obj) = 
-    let
-        t = timeToHit p obj 
-    in
-      if t > 0
-      then Nothing
-      else Just (t, obj)
+    (timeToHit p obj, obj)
+
+tryHit p (Complement body) =
+    (-(t), obj)
+    where (t, obj) = tryHit p body
 
 tryHit p (Intersection b1 b2) =
     let
-        r1 = tryHit p b1
-        r2 = tryHit p b2
+        (t1, obj1) = tryHit p b1
+        (t2, obj2) = tryHit p b2
     in
-      case (r1, r2) of
-        -- When last object is hit, the whole intersection is hit
-        (Just (t1, obj1), Just (t2, obj2)) -> if abs t1 < abs t2
-                                              then r1
-                                              else r2
-        _ -> Nothing
+      if t1 < 0 && t2 < 0
+      then if abs t1 < abs t2
+           then (t1, obj1)
+           else (t2, obj2)
+      else max (t1, obj1) (t2, obj2)
 
 tryHit p (Union b1 b2) =
     let
-        r1 = tryHit p b1
-        r2 = tryHit p b2
+        (t1, obj1) = tryHit p b1
+        (t2, obj2) = tryHit p b2
     in
-      case (r1, r2) of
-        (Nothing, Nothing) -> Nothing
-        (r1, Nothing) -> r1
-        (Nothing, r2) -> r2
-        -- When first object is hit, the union is hit
-        (Just (t1, obj1), Just (t2, obj2)) -> if abs t1 > abs t2
-                                              then r1
-                                              else r2
+      if t1 < 0 || t2 < 0
+      then if abs t1 > abs t2
+           then (t1, obj1)
+           else (t2, obj2)
+      else max (t1, obj1) (t2, obj2)
 
 -- Return particle after possible collision with body
 hit :: Particle -> Body -> Particle
 hit p b = 
     let
-        r = tryHit p b
+        (t, obj) = tryHit p b
+        particleAtHit = move t p
     in
-      case r of
-        Just (t, obj) -> reflectSpecular particleAtHit (normal obj (position particleAtHit)) t
-                         where particleAtHit = move t p
-        Nothing -> p
+      if t < 0
+      then reflectSpecular particleAtHit (normal obj (position particleAtHit)) t
+      else p
