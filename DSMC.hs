@@ -84,46 +84,66 @@ reflectSpecular p n t =
     where
       v = speed p
 
--- Return 2-tuple containing negative time since hit with body and
--- object which was hit first. If no objects are hit so far, time is
--- positive.
-tryHit :: Particle -> Body -> (Time, Object)
+-- We have to preserve time until hit even if no hit occured to
+-- properly process object complements
+data HitResult = Hit Time Object
+               | NoHit Time Object
+               deriving (Eq, Ord)
+
+-- Return HitResult containing Hit with time since hit with body and
+-- object which was hit first. Return NoHit if no objects are hit so
+-- far.
+tryHit :: Particle -> Body -> HitResult
 tryHit p (Primitive obj) = 
-    (timeToHit p obj, obj)
+    let
+        t = timeToHit p obj
+    in
+      if t > 0
+      then NoHit t obj
+      else Hit (abs t) obj
 
 tryHit p (Complement body) =
-    (-(t), obj)
-    where (t, obj) = tryHit p body
+    let
+        hr = tryHit p body
+    in
+      case hr of 
+        (NoHit t obj) -> Hit t obj
+        (Hit t obj) -> (NoHit t obj)
 
 tryHit p (Intersection b1 b2) =
     let
-        (t1, obj1) = tryHit p b1
-        (t2, obj2) = tryHit p b2
+        hr1 = tryHit p b1
+        hr2 = tryHit p b2
     in
-      if t1 < 0 && t2 < 0
-      then if abs t1 < abs t2
-           then (t1, obj1)
-           else (t2, obj2)
-      else max (t1, obj1) (t2, obj2)
+      case (hr1, hr2) of
+        (Hit t1 obj1, Hit t2 obj2) -> if t1 < t2
+                                      then Hit t1 obj1
+                                      else Hit t2 obj2
+        
+        _ -> max hr1 hr2
 
 tryHit p (Union b1 b2) =
     let
-        (t1, obj1) = tryHit p b1
-        (t2, obj2) = tryHit p b2
+        hr1 = tryHit p b1
+        hr2 = tryHit p b2
     in
-      if t1 < 0 || t2 < 0
-      then if abs t1 > abs t2
-           then (t1, obj1)
-           else (t2, obj2)
-      else max (t1, obj1) (t2, obj2)
+      case (hr1, hr2) of
+        (NoHit t1 obj1, NoHit t2 obj2) -> max hr1 hr2
+        (Hit _ _, Hit _ _) -> max hr1 hr2
+        (Hit _ _, NoHit _ _) -> hr1
+        (NoHit _ _, Hit _ _) -> hr2
 
 -- Return particle after possible collision with body
 hit :: Particle -> Body -> Particle
 hit p b = 
     let
-        (t, obj) = tryHit p b
-        particleAtHit = move t p
+        hr = tryHit p b
     in
-      if t < 0
-      then reflectSpecular particleAtHit (normal obj (position particleAtHit)) t
-      else p
+      case hr of
+        (Hit th obj) -> 
+            let
+                t = (-th)
+                particleAtHit = move t p
+            in
+              reflectSpecular particleAtHit (normal obj (position particleAtHit)) t
+        _ -> p
