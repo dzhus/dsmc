@@ -12,12 +12,11 @@ exportParticles particles = do
 
 main =
      let
-        p1 = Particle (0, 5, 0.5) (0, 1, -6)
-        plane1 = Primitive (Plane (0, 0.3, 1) 0)
-        plane2 = Primitive (Plane (0, -1, 1) 10)
-        plane3 = Primitive (Plane (0, -0.3, -1) 3)
-        body = Union plane3 (Union plane1 plane2)
-        dt = 0.01
+        plane1 = Primitive (Plane (0, -1, 1) (3))
+        plane2 = Primitive (Plane (0, 0, 1) (-7))
+        plane3 = Primitive (Plane (0, 1, 1) (3))
+        sphere = Primitive (Sphere (0, 1, 0) 2)
+        body = Union (Union plane1 plane3) (sphere)
+        dt = 0.1
      in do
-     exportParticles (unfoldr (\(t, p) -> if t > 0 then Just (hit (move dt p) body, (t - dt, hit (move dt p) body)) else Nothing) (3, p1))
-
+     mapM_ (\p1 -> exportParticles (unfoldr (\(t, p) -> if t > 0 then Just (hit (move dt p) body, (t - dt, hit (move dt p) body)) else Nothing) (3, p1))) [Particle (x / 5, y / 5, 5) (0, 0, -5) | y <- [-10..10], x <- [-10..10]]
