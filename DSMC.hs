@@ -155,19 +155,19 @@ complement (x:xs) =
                          else [flipNormals (c, (infinityP, Nothing))]
 
 -- Find possible collisions of particle with respect to body structure
-tryHit :: Particle -> Body -> Trace
+traceParticle :: Particle -> Body -> Trace
 
-tryHit p (Primitive b) =
+traceParticle p (Primitive b) =
     findHits p b
 
-tryHit p (Union b1 b2) =
-    unite (tryHit p b1) (tryHit p b2)
+traceParticle p (Union b1 b2) =
+    unite (traceParticle p b1) (traceParticle p b2)
 
-tryHit p (Intersection b1 b2) =
-    intersect (tryHit p b1) (tryHit p b2)
+traceParticle p (Intersection b1 b2) =
+    intersect (traceParticle p b1) (traceParticle p b2)
 
-tryHit p (Complement b) =
-    complement (tryHit p b)
+traceParticle p (Complement b) =
+    complement (traceParticle p b)
 
 -- Find if particle is inside the body
 insideBody :: Particle -> Body -> Bool
@@ -198,7 +198,7 @@ hit :: Particle -> Time -> Body -> Particle
 hit p dt b = 
     let
         justHit = [(((-dt), Nothing), (0, Nothing))]
-        fullTrace = (tryHit p b)
+        fullTrace = (traceParticle p b)
         trace = intersect fullTrace justHit
     in
       if null trace
