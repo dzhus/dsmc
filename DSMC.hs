@@ -81,7 +81,7 @@ findHits (Particle pos v) (Plane n d)
         let
             t = (pos <*> n + d) / f
         in
-          if t >= 0
+          if f > 0
           then [((t, Just nn), (infinityP, Nothing))]
           else [((infinityN, Nothing), (t, Just nn))]
     where
