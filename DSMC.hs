@@ -114,7 +114,12 @@ type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
 merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
 
 -- Overlap two overlapping segments
-overlap (a1, b1) (a2, b2) = (max a1 a2, min b1 b2)
+--
+-- If overlap results in a single point, then preserve real vectors
+-- over Nothing.
+overlap (a1, b1) (a2, b2) = collapsePoint (max a1 a2, min b1 b2)
+                            where
+                              collapsePoint ((x, u), (y, v)) = ((x, max u v), (y, max u v))
 
 -- Reverse both normal vectors of segment
 flipNormals ((x, u), (y, v)) = ((x, Vector.reverse `liftM` u), 
