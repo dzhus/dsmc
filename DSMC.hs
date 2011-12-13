@@ -115,7 +115,9 @@ merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
 -- over Nothing.
 overlap (a1, b1) (a2, b2) = collapsePoint (max a1 a2, min b1 b2)
                             where
-                              collapsePoint ((x, u), (y, v)) = ((x, max u v), (y, max u v))
+                              collapsePoint (f@(x, u), s@(y, v)) = if x == y
+                                                                   then ((x, max u v), (y, max u v))
+                                                                   else (f, s)
 
 -- Reverse both normal vectors of segment
 flipNormals ((x, u), (y, v)) = ((x, Vector.reverse `liftM` u), 
@@ -153,6 +155,7 @@ complement (x:xs) =
       complement' c [] = if (isInfinite (fst c))
                          then []
                          else [flipNormals (c, (infinityP, Nothing))]
+complement [] = [((infinityN, Nothing), (infinityP, Nothing))]
 
 -- Find possible collisions of particle with respect to body structure
 traceParticle :: Particle -> Body -> Trace
