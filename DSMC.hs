@@ -2,9 +2,11 @@ module DSMC
 
 where
 
-type Point = (Double, Double, Double)
+import Control.Monad
+import Data.Maybe
+import Debug.Trace
 
-type Vector = (Double, Double, Double)
+import Vector
 
 type Time = Double
 
@@ -30,28 +32,14 @@ data Body = Primitive Object
           | Complement Body
 
 instance Show Object where
-         show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
          show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
+         show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
 
 instance Show Body where
          show (Primitive a) = show a
          show (Union a b) = "{" ++ (show a) ++ "} ∪ {" ++ (show b) ++ "}"
          show (Intersection a b) = "{" ++ (show a) ++ "} ∩ {" ++ (show b) ++ "}"
-
--- Vector operations
-(x1, y1, z1) <+> (x2, y2, z2) = (x1 + x2, y1 + y2, z1 + z2)
-(x1, y1, z1) <-> (x2, y2, z2) = (x1 - x2, y1 - y2, z1 - z2)
-(x, y, z) *> f = (x * f, y * f, z * f)
-(x1, y1, z1) <*> (x2, y2, z2) = x1 * x2 + y1 * y2 + z1 * z2
-
-distance :: Point -> Point -> Double
-distance (x1, y1, z1) (x2, y2, z2) = sqrt ((x1 - x2) ^ 2 + (y1 - y2) ^ 2 + (z1 - z2) ^ 2)
-
-norm :: Vector -> Double
-norm v = distance v (0, 0, 0)
-
-normalize :: Vector -> Vector
-normalize v = v *> (1 / norm v)
+         show (Complement a) = "∁" ++ (show a)
 
 -- Move particle for t time and update its position
 move t (Particle p speed) = (Particle (p <+> (speed *> t)) speed)
@@ -69,6 +57,9 @@ normal :: Object -> Point -> Vector
 normal (Plane n d) _ = normalize n
 normal (Sphere c r) p = normalize (p <-> c)
 
+infinityP = 1 / 0
+infinityN = -1 / 0
+
 -- Solve quadratic equation
 solveq :: (Double, Double, Double) -> [Double]
 solveq (a, b, c)
@@ -78,28 +69,35 @@ solveq (a, b, c)
     where
       d = b * b - 4 * a * c
 
--- Calculate time until object is hit by particle. If not positive,
--- then particle is inside the object. Moving particle for this time
--- results in hit point. If particle will never hit the object,
--- Nothing is returned.
-timeToHit :: Particle -> Object -> Maybe Time
-timeToHit (Particle pos v) (Plane n d)
-    | f == 0 = Nothing
-    | otherwise = Just ((pos <*> n + d) / f)
-    where
-      f = abs(n <*> v)
-
-timeToHit (Particle pos v) (Sphere c r) =
-    if (distance pos c) < r
-    then
+-- Calculate times at which object surface is intersected by
+-- particle.
+findHits :: Particle -> Object -> Trace
+findHits (Particle pos v) (Plane n d)
+    | f == 0 = []
+    | otherwise = 
         let
-            d = pos <-> c
-            roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
+            t = (pos <*> n + d) / f
         in
-          if null roots
-          then Nothing
-          else Just (minimum roots)
-    else Nothing
+          if t >= 0
+          then [((t, Just nn), (infinityP, Nothing))]
+          else [((infinityN, Nothing), (t, Just nn))]
+    where
+      f = -(n <*> v)
+      nn = normalize n
+
+findHits p@(Particle pos v) s@(Sphere c r) =
+    let
+        d = pos <-> c
+        roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
+    in
+      case roots of
+        [t1, t2] ->
+            let
+                p1 = move t1 p
+                p2 = move t2 p
+            in
+              [((t1, Just (normal s (position p1))), (t2, Just (normal s (position p2))))]
+        _ -> []
 
 -- Update particle position and velocity after specular hit given a
 -- normalized normal vector of surface in hit point and time since hit
@@ -110,73 +108,83 @@ reflectSpecular p n t =
     where
       v = speed p
 
--- We have to preserve time until hit even if no hit occured to
--- properly process object complements
-data HitResult = BeenHit Time Object
-               | ToHit Time Object
-               | NeverHit
-               deriving (Eq, Ord, Show)
+type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
 
--- Return HitResult containing Hit with time since hit with body and
--- object which was hit first. Return NoHit if no objects are hit so
--- far.
-tryHit :: Particle -> Body -> HitResult
-tryHit p (Primitive obj) = 
-    let
-        mt = timeToHit p obj
-    in
-      case mt of
-        (Just t) ->  if t > 0
-                     then ToHit t obj
-                     else BeenHit (abs t) obj
-        Nothing -> NeverHit
+-- Merge two overlapping segments
+merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
 
-tryHit p (Complement body) =
-    let
-        hr = tryHit p body
-    in
-      case hr of 
-        (ToHit t obj) -> BeenHit t obj
-        (BeenHit t obj) -> (ToHit t obj)
-        _ -> hr
+-- Overlap two overlapping segments
+overlap (a1, b1) (a2, b2) = (max a1 a2, min b1 b2)
 
-tryHit p (Intersection b1 b2) =
-    let
-        hr1 = tryHit p b1
-        hr2 = tryHit p b2
-    in
-      case (hr1, hr2) of
-        (BeenHit t1 obj1, BeenHit t2 obj2) -> min hr1 hr2
-        (NeverHit, NeverHit) -> NeverHit
-        (NeverHit, _) -> hr2
-        (_, NeverHit) -> hr1
-        _ -> max hr1 hr2
+-- Reverse both normal vectors of segment
+flipNormals ((x, u), (y, v)) = ((x, Vector.reverse `liftM` u), 
+                                (y, Vector.reverse `liftM` v))
+
+type Trace = [HitSegment]
+
+unite :: Trace -> Trace -> Trace
+unite hsl1 (hs:t2) =
+    unite (unite' hsl1 hs) t2
+    where
+      unite' (hs1@(a1, b1):t1) hs2@(a, b)
+          | b < a1 = hs2:hs1:t1
+          | a > b1 = hs1:(unite' t1 hs2)
+          | otherwise = unite' t1 (merge hs1 hs2)
+      unite' [] hs2 = [hs2]
+unite hsl1 [] = hsl1
+
+intersect :: Trace -> Trace -> Trace
+intersect tr1 tr2 =
+    foldl unite [] (map (\hs -> intersect' tr1 hs) tr2)
+    where
+      intersect' (hs1@(a1, b1):t1) hs2@(a, b)
+          | b < a1 = []
+          | a > b1 = intersect' t1 hs2
+          | otherwise = (overlap hs1 hs2):(intersect' t1 (min b b1, max b b1))
+      intersect' [] hs2 = []
+
+complement :: Trace -> Trace
+complement (x:xs) = 
+    start ++ (complement' (snd x) xs)
+    where
+      start = if (isInfinite (fst (fst x)))
+              then []
+              else [flipNormals ((infinityN, Nothing), fst x)]
+      complement' c (h:tr) = (flipNormals (c, fst h)):(complement' (snd h) tr)
+      complement' c [] = if (isInfinite (fst c))
+                         then []
+                         else [flipNormals (c, (infinityP, Nothing))]
+
+tryHit :: Particle -> Body -> Trace
+
+tryHit p (Primitive b) =
+    findHits p b
 
 tryHit p (Union b1 b2) =
-    let
-        hr1 = tryHit p b1
-        hr2 = tryHit p b2
-    in
-      case (hr1, hr2) of
-        (BeenHit _ _, BeenHit _ _) -> max hr1 hr2
-        (BeenHit _ _, _) -> hr1
-        (_, BeenHit _ _) -> hr2
-        (ToHit t1 obj1, ToHit t2 obj2) -> max hr1 hr2
-        (NeverHit, NeverHit) -> NeverHit
-        (NeverHit, _) -> hr2
-        (_, NeverHit) -> hr1
+    unite (tryHit p b1) (tryHit p b2)
 
--- Return particle after possible collision with body
-hit :: Particle -> Body -> Particle
-hit p b = 
+tryHit p (Intersection b1 b2) =
+    intersect (tryHit p b1) (tryHit p b2)
+
+tryHit p (Complement b) =
+    complement (tryHit p b)
+
+-- Return particle after possible collision with body during given timespan
+hit :: Particle -> Time -> Body -> Particle
+hit p dt b = 
     let
-        hr = tryHit p b
+        justHit = [(((-dt), Nothing), (0, Nothing))]
+        fullTrace = (tryHit p b)
+        trace = intersect fullTrace justHit
     in
-      case hr of
-        (BeenHit th obj) -> 
-            let
-                t = (-th)
-                particleAtHit = move t p
-            in
-              reflectSpecular particleAtHit (normal obj (position particleAtHit)) t
-        _ -> p
+      if null trace
+      then p
+      else
+          let
+              hitPoint = fst (head trace)
+              t = fst hitPoint
+              n = snd hitPoint
+              particleAtHit = move t p
+          in
+            reflectSpecular particleAtHit (fromJust n) t
+
