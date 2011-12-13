@@ -194,8 +194,8 @@ reflectSpecular p n t =
       v = speed p
 
 -- Particle after possible collision with body during timestep
-hit :: Particle -> Time -> Body -> Particle
-hit p dt b = 
+hit :: Time -> Body -> Particle -> Particle
+hit dt b p = 
     let
         justHit = [(((-dt), Nothing), (0, Nothing))]
         fullTrace = (traceParticle p b)
