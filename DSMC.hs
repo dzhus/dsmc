@@ -20,7 +20,7 @@ data Particle = Particle
 data Domain = Box Double Double Double Double Double Double
               deriving Show
 
--- 
+-- Simple geometrical object
 data Object = Sphere Point Double
             | Plane Vector Double
             deriving (Eq, Ord)
@@ -69,8 +69,11 @@ solveq (a, b, c)
     where
       d = b * b - 4 * a * c
 
--- Calculate times at which object surface is intersected by
--- particle.
+type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
+type Trace = [HitSegment]
+
+-- Calculate times at which object surface is intersected by particle.
+-- Return a list of ((t1, n1), (t2, n2)), where t1 and t2 are
 findHits :: Particle -> Object -> Trace
 findHits (Particle pos v) (Plane n d)
     | f == 0 = []
@@ -99,17 +102,6 @@ findHits p@(Particle pos v) s@(Sphere c r) =
               [((t1, Just (normal s (position p1))), (t2, Just (normal s (position p2))))]
         _ -> []
 
--- Update particle position and velocity after specular hit given a
--- normalized normal vector of surface in hit point and time since hit
--- (not positive)
-reflectSpecular :: Particle -> Vector -> Time -> Particle
-reflectSpecular p n t =
-    move (-1 * t) p{speed = v <-> (n *> (v <*> n) *> 2)}
-    where
-      v = speed p
-
-type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
-
 -- Merge two overlapping segments
 merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
 
@@ -124,8 +116,6 @@ overlap (a1, b1) (a2, b2) = collapsePoint (max a1 a2, min b1 b2)
 -- Reverse both normal vectors of segment
 flipNormals ((x, u), (y, v)) = ((x, Vector.reverse `liftM` u), 
                                 (y, Vector.reverse `liftM` v))
-
-type Trace = [HitSegment]
 
 unite :: Trace -> Trace -> Trace
 unite hsl1 (hs:t2) =
@@ -160,6 +150,7 @@ complement (x:xs) =
                          then []
                          else [flipNormals (c, (infinityP, Nothing))]
 
+-- Find possible collisions of particle with respect to body structure
 tryHit :: Particle -> Body -> Trace
 
 tryHit p (Primitive b) =
@@ -174,7 +165,16 @@ tryHit p (Intersection b1 b2) =
 tryHit p (Complement b) =
     complement (tryHit p b)
 
--- Return particle after possible collision with body during given timespan
+-- Update particle position and velocity after specular hit given a
+-- normalized normal vector of surface in hit point and time since hit
+-- (not positive)
+reflectSpecular :: Particle -> Vector -> Time -> Particle
+reflectSpecular p n t =
+    move (-1 * t) p{speed = v <-> (n *> (v <*> n) *> 2)}
+    where
+      v = speed p
+
+-- Particle after possible collision with body during timestep
 hit :: Particle -> Time -> Body -> Particle
 hit p dt b = 
     let
