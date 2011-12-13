@@ -50,7 +50,7 @@ inDomain (Box xmin xmax ymin ymax zmin zmax) (Particle (x, y, z) v) =
     ymax >= y && y >= ymin &&
     zmax >= z && z >= zmin         
 
-clip domain particles = filter (inDomain domain) particles
+clipDomain domain particles = filter (inDomain domain) particles
 
 -- Normalized normal vector to surface at point
 normal :: Object -> Point -> Vector
@@ -101,6 +101,10 @@ findHits p@(Particle pos v) s@(Sphere c r) =
             in
               [((t1, Just (normal s (position p1))), (t2, Just (normal s (position p2))))]
         _ -> []
+
+inside :: Particle -> Object -> Bool
+inside (Particle pos v) (Plane n d) = (pos <*> n + d) < 0
+inside (Particle pos v) (Sphere c r) = (distance pos c) < r
 
 -- Merge two overlapping segments
 merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
@@ -165,6 +169,21 @@ tryHit p (Intersection b1 b2) =
 tryHit p (Complement b) =
     complement (tryHit p b)
 
+-- Find if particle is inside the body
+insideBody :: Particle -> Body -> Bool
+
+insideBody p (Primitive o) =
+    inside p o
+
+insideBody p (Union b1 b2) =
+    (insideBody p b1) || (insideBody p b2)
+
+insideBody p (Intersection b1 b2) =
+    (insideBody p b1) && (insideBody p b2)
+
+insideBody p (Complement b) =
+    not (insideBody p b)
+
 -- Update particle position and velocity after specular hit given a
 -- normalized normal vector of surface in hit point and time since hit
 -- (not positive)
@@ -193,3 +212,4 @@ hit p dt b =
           in
             reflectSpecular particleAtHit (fromJust n) t
 
+clipBody body particles = filter (\p -> not (insideBody p body)) particles
