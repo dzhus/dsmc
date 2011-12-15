@@ -2,6 +2,8 @@ module Render
 
 where
 
+import Data.Maybe
+
 import DSMC
 import Vector
 
@@ -11,7 +13,7 @@ type Ray = Particle
 type Camera = (Vector, Double)
 
 -- Red, green, blue
-type Color = (Float, Float, Float)
+type Color = (Double, Double, Double)
 
 -- Preset colors
 red, green, blue, white :: Color
@@ -19,6 +21,9 @@ red = (1, 0, 0)
 green = (0, 1, 0)
 blue = (0, 0, 1)
 white = (1, 1, 1)
+
+scaleColor :: Color -> Double -> Color
+scaleColor (r, g, b) f = (r * f, g * f, b * f)
 
 -- Generate numX * numY rays starting from camera plane parallel to
 -- plane normal. Viewport dimensions are scaled.
@@ -44,7 +49,11 @@ rayCast ray b =
     in
       if null trace
       then white
-      else red
+      else 
+          let
+              n = fromJust (snd (fst (head trace)))
+          in
+            scaleColor red ((Vector.reverse n) <*> (speed ray))
 
 -- Write list of pixel colors to PGM string
 makePgm :: Int -> Int -> [Color] -> String
