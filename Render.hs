@@ -10,25 +10,36 @@ import Vector
 type Ray = Particle
 
 -- Camera orientation and distance from (0, 0, 0)
-type Camera = (Vector, Double)
+data Camera = Camera Vector Double
 
 -- Red, green, blue
-type Color = (Double, Double, Double)
+type Color = Vector
 
 -- Preset colors
-red, green, blue, white :: Color
+red, green, blue, white, yellow :: Color
 red = (1, 0, 0)
 green = (0, 1, 0)
 blue = (0, 0, 1)
 white = (1, 1, 1)
+cyan = mixColors green blue
+magenta = mixColors red blue
+yellow = mixColors red green
 
 scaleColor :: Color -> Double -> Color
-scaleColor (r, g, b) f = (r * f, g * f, b * f)
+scaleColor color f = clampColor (color *> f)
+
+-- Set color channels to be within range (0.0, 1.0) each
+clampColor :: Color -> Color
+clampColor (r, g, b) = (clamp r, clamp g, clamp b)
+                       where clamp x = max 0.0 (min 1.0 x)
+
+mixColors :: Color -> Color -> Color
+mixColors c1 c2 = clampColor (c1 <+> c2)
 
 -- Generate numX * numY rays starting from camera plane parallel to
 -- plane normal. Viewport dimensions are scaled.
 spawnRays :: Camera -> Int -> Int -> Double -> [Particle]
-spawnRays cam@(v,d) numX numY scale =
+spawnRays (Camera v d) numX numY scale =
     let
         (n, sX, sY) = buildCartesian v
         c = v *> d
