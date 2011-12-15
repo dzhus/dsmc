@@ -44,16 +44,16 @@ spawnRays (Camera v d) numX numY scale =
         (n, sX, sY) = buildCartesian v
         c = v *> d
         xSteps = [-(numX `div` 2) .. (numX - 1) `div` 2]
-        ySteps = [-(numY `div` 2) .. (numY - 1) `div` 2]
+        ySteps = Prelude.reverse [-(numY `div` 2) .. (numY - 1) `div` 2]
     in
       [Particle (c 
                  <+> (sX *> (fromIntegral x) *> scale) 
                  <+> (sY *> (fromIntegral y) *> scale)) n
-       | x <- xSteps, y <- ySteps]
+       | y <- ySteps, x <- xSteps]
 
 -- Calculate ray color
 rayCast :: Particle -> Body -> Color
-rayCast ray b = 
+rayCast ray b =
     let
         fullTrace = traceParticle ray b
         trace = intersect fullTrace [((0, Nothing), (infinityP, Nothing))]
@@ -75,5 +75,5 @@ makePgm width height xs = "P3\n" ++ show width ++ " " ++ show height ++ "\n255" 
 				   ++ show (round (b * 255)) ++ " " 
 				   ++ stringify xs
 
-renderBody :: Camera -> Body -> Int -> Int -> Double -> String
-renderBody cam b x y scale = makePgm x y (map (\p -> rayCast p b) (spawnRays cam x y scale))
+renderBodyPgm :: Camera -> Body -> Int -> Int -> Double -> String
+renderBodyPgm cam b x y scale = makePgm x y (map (\p -> rayCast p b) (spawnRays cam x y scale))
