@@ -27,19 +27,14 @@ data Object = Sphere Point Double
 
 -- Body is a composition of objects
 data Body = Primitive Object
-          | Union Body Body
-          | Intersection Body Body
+          | Union [Body]
+          | Intersection [Body]
           | Complement Body
+          deriving Show
 
 instance Show Object where
          show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
          show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
-
-instance Show Body where
-         show (Primitive a) = show a
-         show (Union a b) = "{" ++ (show a) ++ "} ∪ {" ++ (show b) ++ "}"
-         show (Intersection a b) = "{" ++ (show a) ++ "} ∩ {" ++ (show b) ++ "}"
-         show (Complement a) = "∁" ++ (show a)
 
 -- Move particle for t time and update its position
 move t (Particle p speed) = (Particle (p <+> (speed *> t)) speed)
@@ -163,11 +158,17 @@ traceParticle :: Particle -> Body -> Trace
 traceParticle p (Primitive b) =
     findHits p b
 
-traceParticle p (Union b1 b2) =
-    unite (traceParticle p b1) (traceParticle p b2)
+traceParticle p (Union bodies) =
+    let
+        t:ts = map (traceParticle p) bodies
+    in
+      foldl unite t ts
 
-traceParticle p (Intersection b1 b2) =
-    intersect (traceParticle p b1) (traceParticle p b2)
+traceParticle p (Intersection bodies) =
+    let
+        t:ts = map (traceParticle p) bodies
+    in
+      foldl intersect t ts
 
 traceParticle p (Complement b) =
     complement (traceParticle p b)
@@ -178,11 +179,11 @@ insideBody :: Particle -> Body -> Bool
 insideBody p (Primitive o) =
     inside p o
 
-insideBody p (Union b1 b2) =
-    (insideBody p b1) || (insideBody p b2)
+insideBody p (Union bodies) =
+    or (map (insideBody p) bodies)
 
-insideBody p (Intersection b1 b2) =
-    (insideBody p b1) && (insideBody p b2)
+insideBody p (Intersection bodies) =
+    and (map (insideBody p) bodies)
 
 insideBody p (Complement b) =
     not (insideBody p b)
