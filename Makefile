@@ -3,3 +3,6 @@ all:
 
 caster:
 	ghc --make Caster.hs
+
+gl:
+	ghc --make GL.hs
