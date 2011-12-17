@@ -12,7 +12,7 @@ exportParticles particles = do
 
 processParticles :: [Particle] -> Time -> Body -> [Particle]
 processParticles particles dt body =
-    clipBody body (map (\p -> hit (move dt p) dt body) particles)
+    clipBody body (map ((hit dt body) . (move dt)) particles)
 
 fillBody b = clipBody b [Particle (x / 10, y / 10, z / 10) (0, 0, 0) 
                              | x <- [-50..50], y <- [-50..50], z <- [-50..50]]
