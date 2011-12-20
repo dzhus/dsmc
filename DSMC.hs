@@ -23,7 +23,7 @@ data Domain = Box Double Double Double Double Double Double
 -- Simple geometrical object
 data Object = Sphere Point Double
             | Plane Vector Double
-            deriving (Eq, Ord)
+            | Cylinder Vector Point Double
 
 -- Body is a composition of objects
 data Body = Primitive Object
@@ -51,6 +51,7 @@ clipDomain domain particles = filter (inDomain domain) particles
 normal :: Object -> Point -> Vector
 normal (Plane n d) _ = normalize n
 normal (Sphere c r) p = normalize (p <-> c)
+normal (Cylinder n c r) p = normalize (c <+> p <-> (n *> (p <*> n)))
 
 infinityP = 1 / 0
 infinityN = -1 / 0
@@ -95,6 +96,22 @@ findHits p@(Particle pos v) s@(Sphere c r) =
                 p2 = move t2 p
             in
               [((t1, Just (normal s (position p1))), (t2, Just (normal s (position p2))))]
+        _ -> []
+
+findHits p@(Particle pos v) cyl@(Cylinder n c r) =
+    let
+        d = (pos <-> c) <×> n
+        e = v <×> n
+        
+        roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
+    in
+      case roots of
+        [t1, t2] ->
+            let
+                p1 = move t1 p
+                p2 = move t2 p
+            in
+              [((t1, Just (normal cyl (position p1))), (t2, Just (normal cyl (position p2))))]
         _ -> []
 
 inside :: Particle -> Object -> Bool
