@@ -1,22 +1,20 @@
 import DSMC
 import Render
 
-body = Intersection
-       (Intersection 
-       (Union 
-        (Primitive (Sphere (0, 0, 0) 2))
-        (Intersection 
-         (Primitive (Sphere (0, 0, 0) 4))
-         (Primitive (Plane (0, 0, 1) 0)))) 
-       (Complement 
-        (Primitive (Sphere (-2, 0, -1) 3))))
-       (Complement 
-        (Primitive (Sphere (3, 0, 0) 1)))
-
-camera = Camera (-1, 0, -1.0) (-15)
-x = 300
-y = 300
-scale = 0.03
-
-main = do
-  putStrLn (renderBodyPgm camera body x y scale)
+main = 
+    let
+        plane1 = Primitive (Plane (0, 0, 1) 0)
+        plane2 = Primitive (Plane (0, 0, -1) (-1))
+        plane3 = Primitive (Plane (0, 1, 1) 0)
+        plane4 = Primitive (Plane (1, -1, 1) 0)
+        sphere1 = Primitive (Sphere (0, 0, 0) 4)
+        sphere2 = Primitive (Sphere (0, 0, 1) 4)
+        sphere3 = Primitive (Sphere (1, 0, 1) 4)
+        body = Intersection [sphere1, sphere2, sphere3]
+        camera = Camera (0, 1, 0) (-15)
+        x = 300
+        y = 300
+        scale = 0.03
+    in
+      do
+        putStrLn (renderBodyPgm camera body x y scale)
