@@ -51,7 +51,7 @@ clipDomain domain particles = filter (inDomain domain) particles
 normal :: Object -> Point -> Vector
 normal (Plane n d) _ = normalize n
 normal (Sphere c r) p = normalize (p <-> c)
-normal (Cylinder n c r) p = Debug.Trace.trace (show (norm nor)) nor
+normal (Cylinder n c r) p = nor
                             where nor = normalize (h <-> (nn *> (h <*> nn)))
                                   h = p <-> c
                                   nn = normalize n
