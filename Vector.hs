@@ -36,4 +36,7 @@ horizontalShifter (nx, ny, nz) = if nx /= 0
 buildCartesian :: Vector -> (Vector, Vector, Vector)
 buildCartesian v = (normalize v, normalize x, normalize y)
     where x = horizontalShifter v
-          y = x <×> v
+          yc@(yx, yy, yz) = x <×> v
+          y = if yz < 0
+              then Vector.reverse yc
+              else yc
