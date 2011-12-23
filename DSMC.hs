@@ -214,6 +214,10 @@ reflectSpecular p n t =
     where
       v = speed p
 
+-- A very small amount of time for which the particle is moved after
+-- reflecting from body surface.
+hitShift = 10e-10
+
 -- Particle after possible collision with body during timestep
 hit :: Time -> Body -> Particle -> Particle
 hit dt b p = 
@@ -231,7 +235,7 @@ hit dt b p =
               n = snd hitPoint
               particleAtHit = move t p
           in
-            reflectSpecular particleAtHit (fromJust n) t
+            move hitShift (reflectSpecular particleAtHit (fromJust n) t)
 
 clipBody body particles = filter (\p -> not (insideBody p body)) particles
 
