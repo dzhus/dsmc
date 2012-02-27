@@ -1,7 +1,14 @@
+module Main
+
+where
+
 import Data.List
 import Data.List.Utils
 
 import DSMC
+import Particles
+import Traceables
+import Vector
 
 plotParticle :: Particle -> String
 plotParticle (Particle (x, y, z) (vx, vy, vz)) = join " " (map show [x, y, z, vx, vy, vz])
@@ -9,10 +16,6 @@ plotParticle (Particle (x, y, z) (vx, vy, vz)) = join " " (map show [x, y, z, vx
 exportParticles :: [Particle] -> IO ()
 exportParticles particles = do
      mapM_ (putStrLn . plotParticle) particles
-
-processParticles :: [Particle] -> Time -> Body -> [Particle]
-processParticles particles dt body =
-    clipBody body (map ((hit dt body) . (move dt)) particles)
 
 fillBody b = clipBody b [Particle (x / 10, y / 10, z / 10) (0, 0, 0) 
                              | x <- [-50..50], y <- [-50..50], z <- [-50..50]]
