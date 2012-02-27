@@ -6,3 +6,6 @@ caster:
 
 gl:
 	ghc --make GL.hs
+
+clean:
+	@rm -vrf `hg stat -u`
