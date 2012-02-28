@@ -1,24 +1,21 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
--- | Object compositions for which particle trajectory intersections
+-- | Body compositions for which particle trajectory intersections
 -- can be calculated.
 
 module Traceables
     ( -- * Traces
       HitSegment
     , Trace
-      -- * Trace operations
+    -- * Primitive trace operations
     , unite
     , intersect
     , complement
-      -- ** Traceable objects
-    , Traceable(..)
-    , Plane(..)
-    , Sphere(..)
-    , Cylinder(..)
-    , Intersection(..)
-    , Union(..)
-    , Complement(..)
+    -- * Traceable bodies
+    , Body(..)
+    -- ** Operations on traceables
+    , trace
+    , inside
     )
 
 where
@@ -30,9 +27,9 @@ import Util
 import Vector
 
 
--- | HitSegment of a linearly-moving particle on traceable is a time
--- interval during which particle is considered to be inside the
--- traceable.
+-- | HitSegment of a linearly-moving particle on a body is (one of)
+-- the time interval during which particle is considered to be inside
+-- the body.
 --
 -- >                       * ← particle
 -- >                        \
@@ -44,7 +41,7 @@ import Vector
 -- >                  (           =  ← HitSegment )
 -- >                   \           =             /
 -- >                    -\          =          /-
--- >  traceable object →  ---\       =     /---
+-- >  traceable body →  ---\         =     /---
 -- >                          --------o----
 -- >                                   \
 -- >                                    \
@@ -56,9 +53,9 @@ import Vector
 type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
 
 
--- | Particle may enter and leave object several times (in case of
--- higher-than-2 order surfaces), thus its full trace may include
--- several 'HitSegment's.
+-- | Particle may enter and leave body several times (in case of
+-- higher-than-2 order surfaces or complex bodies), thus its full
+-- trace may include several 'HitSegment's.
 type Trace = [HitSegment]
 
 
@@ -124,38 +121,23 @@ complement (x:xs) =
 complement [] = [((infinityN, Nothing), (infinityP, Nothing))]
 
 
-class Traceable a where
-    -- | Calculate trace of particle on object.
-    trace :: Particle -> a -> Trace
-    -- | Check if particle is inside the object.
-    inside :: Particle -> a -> Bool
+data Body = Plane Vector Double
+          -- ^ Half-space defined by plane with outward normal.
+          | Sphere Point Double
+          -- ^ Ball defined by center point and radius.
+          | Cylinder Vector Point Double
+          -- ^ Construct cylinder with axis vector, point on axis and
+          -- radius.
+          | Union [Body]
+          -- ^ Union of bodies.
+          | Intersection [Body]
+          -- ^ Intersection of bodies.
+          | Complement Body
 
--- | Half-space defined by plane with outward normal.
-data Plane =
-    -- | Construct plane with a normal vector and distance from
-    -- origin.
-    Plane Vector Double 
 
-instance Show Plane where
+instance Show Body where
     show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
-
-instance Traceable Plane where
-    trace (Particle pos v) (Plane n d) =
-        let
-          f = -(n <*> v)
-          nn = normalize n
-        in
-          if f == 0
-          then []
-          else
-              let
-                  t = (pos <*> n + d) / f
-              in
-                if f > 0
-                then [((t, Just nn), (infinityP, Nothing))]
-                else [((infinityN, Nothing), (t, Just nn))]
-    inside (Particle pos v) (Plane n d) = 
-        (pos <*> n + d) < 0
+    show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
 
 
 -- | Trace particle on quadratic surface.
@@ -177,76 +159,75 @@ traceQuadratic particle roots normal =
               (t2, Just (normal (position p2))))]
       Nothing -> []
 
-
-data Sphere =
-    -- | Construct sphere with a center point and radius.
-    Sphere Point Double 
-
-instance Show Sphere where
-    show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
-
-instance Traceable Sphere where
-    trace p@(Particle pos v) s@(Sphere c r) =
-        let
-            d = pos <-> c
-            roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
-            normal p = normalize (p <-> c)
-        in
-          traceQuadratic p roots normal
-    inside (Particle pos v) (Sphere c r) =
-        (distance pos c) < r
-
--- | Infinite cylinder.
-data Cylinder =
-    -- | Construct cylinder with axis vector, point on axis and
-    -- radius.
-    Cylinder Vector Point Double
-
-instance Traceable Cylinder where
-    trace p@(Particle pos v) cyl@(Cylinder n c r) =
-        let
-            d = (pos <-> c) <×> n
-            e = v <×> n
-            roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
-            normal p = nor
-                where nor = normalize (h <-> (nn *> (h <*> nn)))
-                      h = p <-> c
-                      nn = normalize n
-        in
-          traceQuadratic p roots normal
+-- | Calculate particle's trace on body.
+trace :: Particle -> Body -> Trace
+trace (Particle pos v) (Plane n d) =
+    let
+      f = -(n <*> v)
+      nn = normalize n
+    in
+      if f == 0
+      then []
+      else
+          let
+              t = (pos <*> n + d) / f
+          in
+            if f > 0
+            then [((t, Just nn), (infinityP, Nothing))]
+            else [((infinityN, Nothing), (t, Just nn))]
 
 
--- | Union of traceables.
-data Union = forall b. Traceable b => Union [b]
-
-instance Traceable Union where
-    trace p (Union bodies) =
-        let
-            t:ts = map (trace p) bodies
-        in
-          foldl unite t ts
-    inside p (Union bodies) =
-        and (map (inside p) bodies)
+trace p@(Particle pos v) s@(Sphere c r) =
+    let
+        d = pos <-> c
+        roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
+        normal p = normalize (p <-> c)
+    in
+      traceQuadratic p roots normal
 
 
--- | Intersection of traceables.
-data Intersection = forall b. Traceable b => Intersection [b]
+trace p@(Particle pos v) cyl@(Cylinder n c r) =
+    let
+        d = (pos <-> c) <×> n
+        e = v <×> n
+        roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
+        normal p = nor
+            where nor = normalize (h <-> (nn *> (h <*> nn)))
+                  h = p <-> c
+                  nn = normalize n
+    in
+      traceQuadratic p roots normal
 
-instance Traceable Intersection where
-    trace p (Intersection bodies) =
-        let
-            t:ts = map (trace p) bodies
-        in
-          foldl intersect t ts
-    inside p (Intersection bodies) =
-        or (map (inside p) bodies)
+
+trace p (Union bodies) =
+    let
+        t:ts = map (trace p) bodies
+    in
+      foldl unite t ts
 
 
--- | Complement to traceable in universe ℝ³.
-data Complement = forall b. Traceable b => Complement b
+trace p (Intersection bodies) =
+    let
+        t:ts = map (trace p) bodies
+    in
+      foldl intersect t ts
 
-instance Traceable Complement where
-    trace p (Complement b) =
-        complement $ trace p b
-    inside p (Complement b) =
-        not $ inside p b
+
+trace p (Complement b) = complement $ trace p b
+
+-- | Body membership predicate.
+inside :: Particle -> Body -> Bool
+
+inside (Particle pos v) (Plane n d) = (pos <*> n + d) < 0
+
+
+inside (Particle pos v) (Sphere c r) = (distance pos c) < r
+
+
+inside p (Union bodies) = and (map (inside p) bodies)
+
+
+inside p (Intersection bodies) = or (map (inside p) bodies)
+
+
+inside p (Complement b) = not $ inside p b

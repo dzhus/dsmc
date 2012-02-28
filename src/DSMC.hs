@@ -36,7 +36,7 @@ reflectSpecular p n t =
 hitShift = 10e-10
 
 -- | Particle after possible collision with body during timestep
-hit :: Traceable b => Time -> b -> Particle -> Particle
+hit :: Time -> Body -> Particle -> Particle
 hit dt b p = 
     let
         justHit = [(((-dt), Nothing), (0, Nothing))]
@@ -57,6 +57,6 @@ hit dt b p =
 clipBody body particles = filter (\p -> not (inside p body)) particles
 
 -- | Collisionless flow simulation step
-processParticles :: Traceable b => [Particle] -> Time -> b -> [Particle]
+processParticles :: [Particle] -> Time -> Body -> [Particle]
 processParticles particles dt body =
     clipBody body (map ((hit dt body) . (move dt)) particles)
