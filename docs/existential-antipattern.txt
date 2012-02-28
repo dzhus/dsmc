@@ -1,0 +1,129 @@
+After implementing Traceable typeclass with Plane, Sphere, Cylinder,
+Union, Intersection and Complement all being different types (but
+instances of Traceable), I stumbled upon the need of box type to
+properly type something like
+
+    Intersection [Plane …, Sphere …]
+
+Since list elements must be of the same type. It turned out that the
+original way of pattern matching based dispatching was a better design
+than using typeclasses.
+
+#haskell discussion:
+
+<dzhus> What if I need a list of values of the same type class, but of
+        different types?  
+<shachaf> dzhus: There's a standard answer to this question -- I think it's on
+          the FAQ -- which often goes "you don't actually want to do that,
+          because [...]".  
+<shachaf> Sometimes you do, and you can use existential types for that.
+<shachaf> What's the type class?
+<shachaf> Consider that e.g. a list of things in the typeclass Show is about
+          as useful as a list of Strings.  
+<dzhus> shachaf: I used to do pattern-matching based dispatching for different
+        objects of single type; I switched to typeclasses to get more
+        type-checking, but now my lists are broken.
+<shachaf> Type classes are pretty different from sum types.
+<shachaf> What "more type-checking" are you getting in this case?
+<ChristianS> typeclasses are useful if you actually don't care about the type
+             of your value, but only expect it to have a certain property
+             (e.g. be showable)
+<dzhus> shachaf: What if I add new constructor but forget to add new case for
+        pattern-matched function for that type.
+<dzhus> ChristianS: exactly
+<geekosaur> dzhus, there's a warning option for that
+<dzhus> ChristianS: my code relies on having one function available for
+        objects being processed
+<shachaf> dzhus: GHC will warn you.
+<dzhus> geekosaur: shachaf: yes, but it's dirties  
+<dzhus> *dirtier
+<geekosaur> dirtier than using an existential?
+<geekosaur> I doubt it
+<shachaf> No, it's cleaner, if you have a closed set of values.  
+<shachaf> I don't think you've provided enough information to be able to
+          usefully answer, though.
+<ChristianS> dzhus: but "dispatching" sounds as if you DO care about the
+             actual type. if you don't, then i don't yet understand your
+             problem.
+<geekosaur> (and if your response to that is that haskell should allow
+            typeclasses without requiring an existential, then you don't
+            understand typeclasses)
+<shachaf> But I can still contradict you. :-)
+<efie> I managed the c-library thing i gues... they seem to come with the
+       "GTK/Glade.exe"bundle which should be installed to path without spaces,
+       so "program files\..." wont work. now i can do "cabal install glade"
+       and there aren't any errors concerning missing c-libraries anymore
+<geekosaur> the no-spaces thing is pretty much normal, yes
+<yitz> dzhus: type classes are very nice when you need them, but that is not
+       very common. it is much more common for sum types to be the right tool.
+                                                                        
+<yitz> dzhus: why would a type class give more type checking than dispatching
+       on the different constructors of a sum type?  
+<dzhus> yitz: explicit typecheck failure vs. compiler warning
+<osa1> is there a way to match Map.empty?
+<yitz> dzhus: what is failing?
+<ClaudiusMaximus> > M.null M.empty
+<lambdabot>   True  
+<geekosaur> osa1, as a pattern?  I don't believe so, since constructors are
+            not exported.  Use a guard
+<ChristianS> osa1: not with pattern matching, you'll have to do the null check
+             (M.null ^^ ) in a guard expression
+<osa1> what's a guard expression?  
+<geekosaur> foo m | M.null m = ...
+<osa1> aha, ok, thanks
+<yitz> dzhus: a common pattern is to have different types for different kinds
+       of data, then have a data type that means "any one of those", with a
+       different constructor wrapping each of the types.  
+<Peaker> I haven't thought this through completely, but I'd say: sum types are
+         useful when you need closed-data, open-code.  Type-classes are
+         typically useful when you need closed-code, open-data.  
+<yitz> dzhus: then if you have the sum type, you pattern match on the
+       constructors to dispatch to functions of different types to handle each
+       case.
+<Peaker> In a project where you control both code and data, you can live with
+         closed-*, so it matters less
+<Peaker> and sum types are the smaller hammer
+<hpaste> dzhus pasted “Pattern-matching vs. typeclasses” at
+         http://hpaste.org/64481  
+<yitz> dzhus: that is then fully type checked, and the compiler warning lets
+       you know if you forgot one of the cases.
+<dzhus> yitz: yes, box type
+<yitz> dzhus: does that match your use case?
+<quicksilver> it's *still* a total abuse of type classes
+<quicksilver> even when you're closed-code, open-data you absolutely do not
+              need type classes
+<quicksilver> you just need higher order data - a "record of functions" or
+              whatever.
+<shachaf> @google existential antipattern
+<geekosaur> which is what type clases are sugar for
+<quicksilver> you only need typeclasses if you want the compiler to
+              automatically infer the right record of functions at compile
+              time.
+<lambdabot>
+            http://lukepalmer.wordpress.com/2010/01/24/haskell-antipattern-existential-typeclass/
+<lambdabot> Title: Haskell Antipattern: Existential Typeclass « Luke Palmer
+<quicksilver> geekosaur: no, they are not
+<quicksilver> geekosaur: typeclasses are absolutely not sugar for a record of
+              functions
+<quicksilver> they're unsugar.
+<quicksilver> they're a benighted bitter poison.
+<ChristianS> dzhus: use a data type (as you did originally) and just take the
+             compiler warnings seriously.  
+<quicksilver> they're a way to make a record of functions ugly, and buggy, and
+              confusing, and mislead people.
+<quicksilver> what typeclasses are, is a way to ask the compiler to select
+              something at compile time based on type information
+<shachaf> @remember quicksilver <quicksilver> typeclasses are absolutely not
+          sugar for a record of functions <quicksilver> they're unsugar.
+          <quicksilver> they're a benighted bitter poison.
+<lambdabot> Done.
+<quicksilver> (a.k.a. adhoc overloading)
+<ChristianS> dzhus: -Wall is your friend, just don't consider your program
+             bug-free until all warnings are fixed.
+<quicksilver> when you want the compiler to use its type-knowledge to select
+              something for you *then* typeclasses the right solution.  
+<quicksilver> not because of open-world or closed-world or existential or
+              whatever.
+<quicksilver> (you can use existentials without typeclasses - and you should,
+              when that's the right solution)
+<quicksilver> remember occam.
