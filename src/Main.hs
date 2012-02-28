@@ -2,13 +2,12 @@ module Main
 
 where
 
-import Data.List
+import Data.List (unfoldr)
 import Data.List.Utils
 
 import DSMC
 import Particles
 import Traceables
-import Vector
 
 plotParticle :: Particle -> String
 plotParticle (Particle (x, y, z) (vx, vy, vz)) = join " " (map show [x, y, z, vx, vy, vz])
@@ -22,13 +21,13 @@ fillBody b = clipBody b [Particle (x / 10, y / 10, z / 10) (0, 0, 0)
 
 main =
     let
-        plane1 = (Plane (0, 0, 1) 0)
-        plane2 = (Plane (0, 0, -1) (-1))
-        plane3 = (Plane (0, 1, 1) 0)
-        sphere1 = (Sphere (0, 0, 0) 4)
-        sphere2 = (Sphere (0, 0, -2) 3)
-        sphere3 = (Sphere (4, 0, 1.02) 1.2)
-        body = Intersection [(Union [(Intersection [plane1, plane2]), sphere2]), plane3]
+        plane1 = (plane (0, 0, 1) 0)
+        plane2 = (plane (0, 0, -1) (-1))
+        plane3 = (plane (0, 1, 1) 0)
+        sphere1 = (sphere (0, 0, 0) 4)
+        sphere2 = (sphere (0, 0, -2) 3)
+        sphere3 = (sphere (4, 0, 1.02) 1.2)
+        body = intersection [(union [(intersection [plane1, plane2]), sphere2]), plane3]
         dt = 0.05
         tmax = 2.8
         particles = [Particle (x / 5, y / 5, 10) (0, 0, -5) | x <- [-20..20], y <- [-20..20]]

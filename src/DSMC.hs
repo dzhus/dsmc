@@ -40,8 +40,8 @@ hit :: Time -> Body -> Particle -> Particle
 hit dt b p = 
     let
         justHit = [(((-dt), Nothing), (0, Nothing))]
-        fullTrace = trace p b
-        insideTrace = intersect fullTrace justHit
+        fullTrace = trace b p
+        insideTrace = intersectTraces fullTrace justHit
     in
       if null insideTrace
       then p
@@ -54,7 +54,7 @@ hit dt b p =
           in
             move hitShift (reflectSpecular particleAtHit (fromJust n) t)
 
-clipBody body particles = filter (\p -> not (inside p body)) particles
+clipBody body particles = filter (\p -> not (inside body p)) particles
 
 -- | Collisionless flow simulation step
 processParticles :: [Particle] -> Time -> Body -> [Particle]

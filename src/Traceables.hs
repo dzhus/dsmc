@@ -8,14 +8,18 @@ module Traceables
       HitSegment
     , Trace
     -- * Primitive trace operations
-    , unite
-    , intersect
-    , complement
+    , uniteTraces
+    , intersectTraces
+    , complementTraces
     -- * Traceable bodies
     , Body(..)
-    -- ** Operations on traceables
-    , trace
-    , inside
+    -- * Body constructors
+    , plane
+    , sphere
+    , cylinder
+    , union
+    , intersection
+    , complement
     )
 
 where
@@ -83,21 +87,21 @@ flipNormals ((x, u), (y, v)) = ((x, Vector.reverse <$> u),
                                 (y, Vector.reverse <$> v))
 
 
-unite :: Trace -> Trace -> Trace
-unite hsl1 (hs:t2) =
-    unite (unite' hsl1 hs) t2
+uniteTraces :: Trace -> Trace -> Trace
+uniteTraces hsl1 (hs:t2) =
+    uniteTraces (unite' hsl1 hs) t2
     where
       unite' (hs1@(a1, b1):t1) hs2@(a, b)
           | b < a1 = hs2:hs1:t1
           | a > b1 = hs1:(unite' t1 hs2)
           | otherwise = unite' t1 (merge hs1 hs2)
       unite' [] hs2 = [hs2]
-unite hsl1 [] = hsl1
+uniteTraces hsl1 [] = hsl1
 
 
-intersect :: Trace -> Trace -> Trace
-intersect tr1 tr2 =
-    foldl unite [] (map (\hs -> intersect' tr1 hs) tr2)
+intersectTraces :: Trace -> Trace -> Trace
+intersectTraces tr1 tr2 =
+    foldl uniteTraces [] (map (\hs -> intersect' tr1 hs) tr2)
     where
       intersect' (hs1@(a1, b1):t1) hs2@(a, b)
           | b < a1 = []
@@ -106,38 +110,27 @@ intersect tr1 tr2 =
       intersect' [] hs2 = []
 
 
--- | Complement to trace (normals flipped) in ℝ³.
-complement :: Trace -> Trace
-complement (x:xs) =
-    start ++ (complement' (snd x) xs)
+-- | Complement to trace (normals flipped) in R³.
+complementTraces :: Trace -> Trace
+complementTraces (x:xs) =
+    start ++ (complementTraces' (snd x) xs)
     where
       start = if (isInfinite (fst (fst x)))
               then []
               else [flipNormals ((infinityN, Nothing), fst x)]
-      complement' c (h:tr) = (flipNormals (c, fst h)):(complement' (snd h) tr)
-      complement' c [] = if (isInfinite (fst c))
+      complementTraces' c (h:tr) = (flipNormals (c, fst h)):(complementTraces' (snd h) tr)
+      complementTraces' c [] = if (isInfinite (fst c))
                          then []
                          else [flipNormals (c, (infinityP, Nothing))]
-complement [] = [((infinityN, Nothing), (infinityP, Nothing))]
+complementTraces [] = [((infinityN, Nothing), (infinityP, Nothing))]
 
 
-data Body = Plane Vector Double
-          -- ^ Half-space defined by plane with outward normal.
-          | Sphere Point Double
-          -- ^ Ball defined by center point and radius.
-          | Cylinder Vector Point Double
-          -- ^ Construct cylinder with axis vector, point on axis and
-          -- radius.
-          | Union [Body]
-          -- ^ Union of bodies.
-          | Intersection [Body]
-          -- ^ Intersection of bodies.
-          | Complement Body
-
-
-instance Show Body where
-    show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
-    show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
+-- | Body for which particle trace and membership can be calculated.
+data Body = Body { trace :: Particle -> Trace
+                 -- ^ Calculate trace of particle on the body.
+                 , inside :: Particle -> Bool
+                 -- ^ Check if particle is inside the body.
+                 }
 
 
 -- | Trace particle on quadratic surface.
@@ -147,7 +140,7 @@ traceQuadratic :: Particle               -- ^ Particle being traced
                                          -- trajectory and surface
                -> (Point -> Vector)      -- ^ Normal of surface at
                                          -- point
-               -> Trace
+               -> Trace                  -- ^ Da trace
 traceQuadratic particle roots normal =
     case roots of
       Just (t1, t2) ->
@@ -159,75 +152,92 @@ traceQuadratic particle roots normal =
               (t2, Just (normal (position p2))))]
       Nothing -> []
 
--- | Calculate particle's trace on body.
-trace :: Particle -> Body -> Trace
-trace (Particle pos v) (Plane n d) =
-    let
-      f = -(n <*> v)
-      nn = normalize n
-    in
-      if f == 0
-      then []
-      else
+
+-- | Half-space defined by plane with outward normal.
+plane :: Vector -> Double -> Body
+plane n d =
+    Body thisTrace thisInside
+    where
+      thisTrace (Particle pos v) =
           let
-              t = (pos <*> n + d) / f
+            f = -(n <*> v)
+            nn = normalize n
           in
-            if f > 0
-            then [((t, Just nn), (infinityP, Nothing))]
-            else [((infinityN, Nothing), (t, Just nn))]
+            if f == 0
+            then []
+            else
+                let
+                    t = (pos <*> n + d) / f
+                in
+                  if f > 0
+                  then [((t, Just nn), (infinityP, Nothing))]
+                  else [((infinityN, Nothing), (t, Just nn))]
+      thisInside (Particle pos _) = (pos <*> n + d) < 0
 
 
-trace p@(Particle pos v) s@(Sphere c r) =
-    let
-        d = pos <-> c
-        roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
-        normal p = normalize (p <-> c)
-    in
-      traceQuadratic p roots normal
+-- | Ball defined by center point and radius.
+sphere :: Point -> Double -> Body
+sphere c r =
+    Body thisTrace thisInside
+    where
+      thisTrace p@(Particle pos v) =
+          let
+              d = pos <-> c
+              roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
+              normal p = normalize (p <-> c)
+          in
+            traceQuadratic p roots normal
+      thisInside (Particle pos _) = (distance pos c) < r
 
+-- | Infinite cylinder defined by vector collinear to axis, point on
+-- axis and radius.
+--
+-- TODO: 'inside' is not implemented (always False for now).
+cylinder :: Vector -> Point -> Double -> Body
+cylinder n c r =
+    Body thisTrace thisInside
+    where
+      thisTrace p@(Particle pos v) =
+          let
+              d = (pos <-> c) <×> n
+              e = v <×> n
+              roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
+              normal p = nor
+                  where nor = normalize (h <-> (nn *> (h <*> nn)))
+                        h = p <-> c
+                        nn = normalize n
+          in
+            traceQuadratic p roots normal
+      thisInside _ = False
 
-trace p@(Particle pos v) cyl@(Cylinder n c r) =
-    let
-        d = (pos <-> c) <×> n
-        e = v <×> n
-        roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
-        normal p = nor
-            where nor = normalize (h <-> (nn *> (h <*> nn)))
-                  h = p <-> c
-                  nn = normalize n
-    in
-      traceQuadratic p roots normal
+-- | Union of bodies.
+union :: [Body] -> Body
+union bodies =
+    Body thisTrace thisInside
+    where
+      thisTrace p =
+          let
+              t:ts = map (flip trace p) bodies
+          in
+            foldl uniteTraces t ts
+      thisInside p = and (map (flip inside p) bodies)
 
+-- | Intersection of bodies.
+intersection :: [Body] -> Body
+intersection bodies =
+    Body thisTrace thisInside
+    where
+      thisTrace p =
+          let
+              t:ts = map (flip trace p) bodies
+          in
+            foldl intersectTraces t ts
+      thisInside p = or (map (flip inside p) bodies)
 
-trace p (Union bodies) =
-    let
-        t:ts = map (trace p) bodies
-    in
-      foldl unite t ts
-
-
-trace p (Intersection bodies) =
-    let
-        t:ts = map (trace p) bodies
-    in
-      foldl intersect t ts
-
-
-trace p (Complement b) = complement $ trace p b
-
--- | Body membership predicate.
-inside :: Particle -> Body -> Bool
-
-inside (Particle pos v) (Plane n d) = (pos <*> n + d) < 0
-
-
-inside (Particle pos v) (Sphere c r) = (distance pos c) < r
-
-
-inside p (Union bodies) = and (map (inside p) bodies)
-
-
-inside p (Intersection bodies) = or (map (inside p) bodies)
-
-
-inside p (Complement b) = not $ inside p b
+-- | Complement to body in universe R³ (normals flipped).
+complement :: Body -> Body
+complement body =
+    Body thisTrace thisInside
+    where
+      thisTrace p = complementTraces $ flip trace p body
+      thisInside p = not $ inside body p
