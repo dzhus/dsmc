@@ -4,7 +4,6 @@ where
 
 import Control.Monad
 import Data.Maybe
-import Debug.Trace
 
 import Particles
 import Traceables
@@ -37,27 +36,27 @@ reflectSpecular p n t =
 hitShift = 10e-10
 
 -- | Particle after possible collision with body during timestep
-hit :: Time -> Body -> Particle -> Particle
+hit :: Traceable b => Time -> b -> Particle -> Particle
 hit dt b p = 
     let
         justHit = [(((-dt), Nothing), (0, Nothing))]
-        fullTrace = (traceParticle p b)
-        trace = intersect fullTrace justHit
+        fullTrace = trace p b
+        insideTrace = intersect fullTrace justHit
     in
-      if null trace
+      if null insideTrace
       then p
       else
           let
-              hitPoint = fst (head trace)
+              hitPoint = fst (head insideTrace)
               t = fst hitPoint
               n = snd hitPoint
               particleAtHit = move t p
           in
             move hitShift (reflectSpecular particleAtHit (fromJust n) t)
 
-clipBody body particles = filter (\p -> not (insideBody p body)) particles
+clipBody body particles = filter (\p -> not (inside p body)) particles
 
 -- | Collisionless flow simulation step
-processParticles :: [Particle] -> Time -> Body -> [Particle]
+processParticles :: Traceable b => [Particle] -> Time -> b -> [Particle]
 processParticles particles dt body =
     clipBody body (map ((hit dt body) . (move dt)) particles)

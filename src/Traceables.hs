@@ -1,144 +1,90 @@
+{-# LANGUAGE ExistentialQuantification #-}
+
+-- | Object compositions for which particle trajectory intersections
+-- can be calculated.
+
 module Traceables
+    ( -- * Traces
+      HitSegment
+    , Trace
+      -- * Trace operations
+    , unite
+    , intersect
+    , complement
+      -- ** Traceable objects
+    , Traceable(..)
+    , Plane(..)
+    , Sphere(..)
+    , Cylinder(..)
+    , Intersection(..)
+    , Union(..)
+    , Complement(..)
+    )
 
 where
 
-import Control.Monad
+import Data.Functor
 
 import Particles
 import Util
 import Vector
 
+
 -- | HitSegment of a linearly-moving particle on traceable is a time
 -- interval during which particle is considered to be inside the
 -- traceable.
 --
--- >   :3
--- >                                    * ← particle
--- >                                     \          
--- >                                      \         
--- >                                       o------------
--- >                                   ---/ =           \---
--- >                                 -/      =              \-
--- >                                /         =               \
--- >                               (           =  ← HitSegment )
--- >                                \           =             /
--- >                                 -\          =          /-
--- >               traceable object →  ---\       =     /---
--- >                                       --------o----
--- >                                                \
--- >                                                 \
--- >                                                 _\/
--- >                                                   \
+-- >                       * ← particle
+-- >                        \
+-- >                         \
+-- >                          o------------
+-- >                      ---/ =           \---
+-- >                    -/      =              \-
+-- >                   /         =               \
+-- >                  (           =  ← HitSegment )
+-- >                   \           =             /
+-- >                    -\          =          /-
+-- >  traceable object →  ---\       =     /---
+-- >                          --------o----
+-- >                                   \
+-- >                                    \
+-- >                                    _\/
+-- >                                      \
 --
--- Normal vectors may be calculated for hit points which are not in
+-- Normal vectors are calculated for hit points which are not in
 -- infinity.
-
 type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
 
--- | Particle may enter and leave object several times, thus its full
--- trace may include several 'HitSegment's
+
+-- | Particle may enter and leave object several times (in case of
+-- higher-than-2 order surfaces), thus its full trace may include
+-- several 'HitSegment's.
 type Trace = [HitSegment]
 
--- Simple geometrical object
-data Object = Sphere Point Double
-            | Plane Vector Double
-            | Cylinder Vector Point Double
-              
--- Body is a composition of objects
-data Body = Primitive Object
-          | Union [Body]
-          | Intersection [Body]
-          | Complement Body
-            deriving Show
-                     
-instance Show Object where
-    show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
-    show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
 
--- Normalized normal vector to surface at point
-normal :: Object -> Point -> Vector
-normal (Plane n d) _ = normalize n
-normal (Sphere c r) p = normalize (p <-> c)
-normal (Cylinder n c r) p = nor
-                            where nor = normalize (h <-> (nn *> (h <*> nn)))
-                                  h = p <-> c
-                                  nn = normalize n
-
--- Solve quadratic equation
-solveq :: (Double, Double, Double) -> [Double]
-solveq (a, b, c)
-    | (d < 0) = []
-    | (d > 0) = [(- b - sqrt d) / (2 * a), (- b + sqrt d) / (2 * a)]
-    | otherwise = [- b / (2 * a)]
-    where
-      d = b * b - 4 * a * c
-
--- Calculate times at which object surface is intersected by particle.
--- Return a list of ((t1, n1), (t2, n2)), where t1 and t2 are
-findHits :: Particle -> Object -> Trace
-findHits (Particle pos v) (Plane n d)
-    | f == 0 = []
-    | otherwise = 
-        let
-            t = (pos <*> n + d) / f
-        in
-          if f > 0
-          then [((t, Just nn), (infinityP, Nothing))]
-          else [((infinityN, Nothing), (t, Just nn))]
-    where
-      f = -(n <*> v)
-      nn = normalize n
-
-findHits p@(Particle pos v) s@(Sphere c r) =
-    let
-        d = pos <-> c
-        roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
-    in
-      case roots of
-        [t1, t2] ->
-            let
-                p1 = move t1 p
-                p2 = move t2 p
-            in
-              [((t1, Just (normal s (position p1))), (t2, Just (normal s (position p2))))]
-        _ -> []
-
-findHits p@(Particle pos v) cyl@(Cylinder n c r) =
-    let
-        d = (pos <-> c) <×> n
-        e = v <×> n
-        
-        roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
-    in
-      case roots of
-        [t1, t2] ->
-            let
-                p1 = move t1 p
-                p2 = move t2 p
-            in
-              [((t1, Just (normal cyl (position p1))), (t2, Just (normal cyl (position p2))))]
-        _ -> []
-
-inside :: Particle -> Object -> Bool
-inside (Particle pos v) (Plane n d) = (pos <*> n + d) < 0
-inside (Particle pos v) (Sphere c r) = (distance pos c) < r
-
--- Merge two overlapping segments
+-- | Merge two overlapping segments.
+merge :: HitSegment -> HitSegment -> HitSegment
 merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
 
--- Overlap two overlapping segments
+
+-- | Overlap two overlapping segments.
 --
 -- If overlap results in a single point, then preserve real vectors
 -- over Nothing.
-overlap (a1, b1) (a2, b2) = collapsePoint (max a1 a2, min b1 b2)
-                            where
-                              collapsePoint (f@(x, u), s@(y, v)) = if x == y
-                                                                   then ((x, max u v), (y, max u v))
-                                                                   else (f, s)
+overlap :: HitSegment -> HitSegment -> HitSegment
+overlap (a1, b1) (a2, b2) =
+    collapsePoint (max a1 a2, min b1 b2)
+        where
+          collapsePoint (f@(x, u), s@(y, v)) = if x == y
+                                               then ((x, max u v), (y, max u v))
+                                               else (f, s)
 
--- Reverse both normal vectors of segment
-flipNormals ((x, u), (y, v)) = ((x, Vector.reverse `liftM` u), 
-                                (y, Vector.reverse `liftM` v))
+
+-- | Reverse both normal vectors of segment.
+flipNormals :: HitSegment -> HitSegment
+flipNormals ((x, u), (y, v)) = ((x, Vector.reverse <$> u),
+                                (y, Vector.reverse <$> v))
+
 
 unite :: Trace -> Trace -> Trace
 unite hsl1 (hs:t2) =
@@ -151,6 +97,7 @@ unite hsl1 (hs:t2) =
       unite' [] hs2 = [hs2]
 unite hsl1 [] = hsl1
 
+
 intersect :: Trace -> Trace -> Trace
 intersect tr1 tr2 =
     foldl unite [] (map (\hs -> intersect' tr1 hs) tr2)
@@ -161,8 +108,10 @@ intersect tr1 tr2 =
           | otherwise = (overlap hs1 hs2):(intersect' t1 (min b b1, max b b1))
       intersect' [] hs2 = []
 
+
+-- | Complement to trace (normals flipped) in ℝ³.
 complement :: Trace -> Trace
-complement (x:xs) = 
+complement (x:xs) =
     start ++ (complement' (snd x) xs)
     where
       start = if (isInfinite (fst (fst x)))
@@ -174,38 +123,130 @@ complement (x:xs) =
                          else [flipNormals (c, (infinityP, Nothing))]
 complement [] = [((infinityN, Nothing), (infinityP, Nothing))]
 
--- Find possible collisions of particle with respect to body structure
-traceParticle :: Particle -> Body -> Trace
 
-traceParticle p (Primitive b) =
-    findHits p b
+class Traceable a where
+    -- | Calculate trace of particle on object.
+    trace :: Particle -> a -> Trace
+    -- | Check if particle is inside the object.
+    inside :: Particle -> a -> Bool
 
-traceParticle p (Union bodies) =
-    let
-        t:ts = map (traceParticle p) bodies
-    in
-      foldl unite t ts
+-- | Half-space defined by plane with outward normal.
+data Plane =
+    -- | Construct plane with a normal vector and distance from
+    -- origin.
+    Plane Vector Double 
 
-traceParticle p (Intersection bodies) =
-    let
-        t:ts = map (traceParticle p) bodies
-    in
-      foldl intersect t ts
+instance Show Plane where
+    show (Plane (a, b, c) d) = "P" ++ (show (a, b, c, d))
 
-traceParticle p (Complement b) =
-    complement (traceParticle p b)
+instance Traceable Plane where
+    trace (Particle pos v) (Plane n d) =
+        let
+          f = -(n <*> v)
+          nn = normalize n
+        in
+          if f == 0
+          then []
+          else
+              let
+                  t = (pos <*> n + d) / f
+              in
+                if f > 0
+                then [((t, Just nn), (infinityP, Nothing))]
+                else [((infinityN, Nothing), (t, Just nn))]
+    inside (Particle pos v) (Plane n d) = 
+        (pos <*> n + d) < 0
 
--- Find if particle is inside the body
-insideBody :: Particle -> Body -> Bool
 
-insideBody p (Primitive o) =
-    inside p o
+-- | Trace particle on quadratic surface.
+traceQuadratic :: Particle               -- ^ Particle being traced
+               -> Maybe (Double, Double) -- ^ Roots of intersection
+                                         -- equation for particle
+                                         -- trajectory and surface
+               -> (Point -> Vector)      -- ^ Normal of surface at
+                                         -- point
+               -> Trace
+traceQuadratic particle roots normal =
+    case roots of
+      Just (t1, t2) ->
+          let
+              p1 = move t1 particle
+              p2 = move t2 particle
+          in
+            [((t1, Just (normal (position p1))),
+              (t2, Just (normal (position p2))))]
+      Nothing -> []
 
-insideBody p (Union bodies) =
-    or (map (insideBody p) bodies)
 
-insideBody p (Intersection bodies) =
-    and (map (insideBody p) bodies)
+data Sphere =
+    -- | Construct sphere with a center point and radius.
+    Sphere Point Double 
 
-insideBody p (Complement b) =
-    not (insideBody p b)
+instance Show Sphere where
+    show (Sphere p d) = "S(" ++ (show p) ++ ";" ++ (show d) ++ ")"
+
+instance Traceable Sphere where
+    trace p@(Particle pos v) s@(Sphere c r) =
+        let
+            d = pos <-> c
+            roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
+            normal p = normalize (p <-> c)
+        in
+          traceQuadratic p roots normal
+    inside (Particle pos v) (Sphere c r) =
+        (distance pos c) < r
+
+-- | Infinite cylinder.
+data Cylinder =
+    -- | Construct cylinder with axis vector, point on axis and
+    -- radius.
+    Cylinder Vector Point Double
+
+instance Traceable Cylinder where
+    trace p@(Particle pos v) cyl@(Cylinder n c r) =
+        let
+            d = (pos <-> c) <×> n
+            e = v <×> n
+            roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
+            normal p = nor
+                where nor = normalize (h <-> (nn *> (h <*> nn)))
+                      h = p <-> c
+                      nn = normalize n
+        in
+          traceQuadratic p roots normal
+
+
+-- | Union of traceables.
+data Union = forall b. Traceable b => Union [b]
+
+instance Traceable Union where
+    trace p (Union bodies) =
+        let
+            t:ts = map (trace p) bodies
+        in
+          foldl unite t ts
+    inside p (Union bodies) =
+        and (map (inside p) bodies)
+
+
+-- | Intersection of traceables.
+data Intersection = forall b. Traceable b => Intersection [b]
+
+instance Traceable Intersection where
+    trace p (Intersection bodies) =
+        let
+            t:ts = map (trace p) bodies
+        in
+          foldl intersect t ts
+    inside p (Intersection bodies) =
+        or (map (inside p) bodies)
+
+
+-- | Complement to traceable in universe ℝ³.
+data Complement = forall b. Traceable b => Complement b
+
+instance Traceable Complement where
+    trace p (Complement b) =
+        complement $ trace p b
+    inside p (Complement b) =
+        not $ inside p b

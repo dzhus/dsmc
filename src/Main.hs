@@ -22,13 +22,13 @@ fillBody b = clipBody b [Particle (x / 10, y / 10, z / 10) (0, 0, 0)
 
 main =
     let
-        plane1 = Primitive (Plane (0, 0, 1) 0)
-        plane2 = Primitive (Plane (0, 0, -1) (-1))
-        plane3 = Primitive (Plane (0, 1, 1) 0)
-        sphere1 = Primitive (Sphere (0, 0, 0) 4)
-        sphere2 = Primitive (Sphere (0, 0, -2) 3)
-        sphere3 = Primitive (Sphere (4, 0, 1.02) 1.2)
-        body = Intersection [(Union [(Intersection [plane1, plane2, Complement sphere1]), sphere2]), plane3]
+        plane1 = (Plane (0, 0, 1) 0)
+        plane2 = (Plane (0, 0, -1) (-1))
+        plane3 = (Plane (0, 1, 1) 0)
+        sphere1 = (Sphere (0, 0, 0) 4)
+        sphere2 = (Sphere (0, 0, -2) 3)
+        sphere3 = (Sphere (4, 0, 1.02) 1.2)
+        body = Intersection [(Union [(Intersection [plane1, plane2]), sphere2]), plane3]
         dt = 0.05
         tmax = 2.8
         particles = [Particle (x / 5, y / 5, 10) (0, 0, -5) | x <- [-20..20], y <- [-20..20]]
