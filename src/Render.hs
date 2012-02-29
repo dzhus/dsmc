@@ -4,7 +4,9 @@ where
 
 import Data.Maybe
 
-import DSMC
+import Particles
+import Traceables
+import Util
 import Vector
 
 type Ray = Particle
@@ -55,14 +57,14 @@ spawnRays (Camera v d) numX numY scale =
 rayCast :: Particle -> Body -> Color
 rayCast ray b =
     let
-        fullTrace = traceParticle ray b
-        trace = intersect fullTrace [((0, Nothing), (infinityP, Nothing))]
+        fullTrace = trace b ray
+        hitTrace = intersectTraces fullTrace [((0, Nothing), (infinityP, Nothing))]
     in
-      if null trace
+      if null hitTrace
       then white
       else 
           let
-              n = fromJust (snd (fst (head trace)))
+              n = fromJust (snd (fst (head hitTrace)))
           in
             scaleColor red ((Vector.reverse n) <*> (speed ray))
 
