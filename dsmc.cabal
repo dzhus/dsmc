@@ -1,0 +1,22 @@
+name:                dsmc
+version:             0.1.0.0
+synopsis:            DSMC toolkit for rarefied gas dynamics
+license:             BSD3
+license-file:        LICENSE
+author:              Dmitry Dzhus
+maintainer:          dima@dzhus.org
+category:            Physics
+
+build-type:          Simple
+cabal-version:       >=1.8
+
+
+library
+  exposed-modules:     Render, Caster, Macroscopic, Traceables, DSMC, Main, Particles, Raycast, Domain, Util, Vector, SexpParser
+  
+  -- Modules included in this library but not exported.
+  -- other-modules:       
+  
+  -- Other library packages from which modules are imported.
+  -- build-depends:       
+  
