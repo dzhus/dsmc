@@ -4,6 +4,10 @@ module Macroscopic
 
 where
 
+import Domain
+import Particles
+import Vector
+
 data Cell = Cell Point [Particle]
 
 data Speed = Speed Point Vector
