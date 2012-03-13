@@ -25,18 +25,16 @@ normalize v = v *> (1 / norm v)
 
 reverse v = v *> (-1)
 
--- Build an ortogonal vector parallel to xy plane (rotated CW around
+-- Build an ortogonal vector parallel to xy plane (rotated CCW around
 -- Oz)
 horizontalShifter :: Vector -> Vector
-horizontalShifter (nx, ny, nz) = if nx /= 0
-                                 then (-ny * y / nx, y, 0)
-                                 else (-ny, 0, 0)
-                                     where y = if nx >= 0 then -1 else 1
+horizontalShifter n@(x, y, z) | z == 0 = (0, 0, 1) <×> n
+                              | x == 0 && y == 0 = (1, 0, 0) <×> n
+                              | otherwise = (x, y, 0) <×> n
 
+-- | Build cartesian axes from Ox vector so that Oz belongs to plane
+-- perpendicular to Oxy (i.e. roll = 0°).
 buildCartesian :: Vector -> (Vector, Vector, Vector)
-buildCartesian v = (normalize v, normalize x, normalize y)
-    where x = horizontalShifter v
-          yc@(yx, yy, yz) = x <×> v
-          y = if yz < 0
-              then Vector.reverse yc
-              else yc
+buildCartesian n = (normalize n, normalize v, normalize w)
+    where v = horizontalShifter n
+          w = v <×> n
