@@ -1,54 +1,72 @@
 -- | Raycasting traceable objects.
 
-module Render
-    (Camera(..)
+module Raycast
+    ( Camera(..)
+    , renderBodyPgm
     )
 
 where
 
-import Control.Monad
+import Control.Applicative
 import Data.Functor
-import qualified Data.List.Utils as L
+
 import Data.Maybe
 
 import Particles
 import Traceables
 import Util
-import Vector
+import qualified Vector as V
+
 
 type Ray = Particle
 
+
 -- | Observation point.
-data Camera = Camera { position :: Point
+data Camera = Camera { position :: V.Point
                      -- ^ Absolute camera position
-                     , direction :: Vector
+                     , direction :: V.Vector
                      -- ^ View direction
                      }
 
 
 -- | Red, green, blue
-type Color = [Double]
+data Triple a = Triple a a a
+              deriving Show
+
+instance Functor Triple where
+    fmap f (Triple x y z) = Triple (f x) (f y) (f z)
+
+instance Applicative Triple where
+    pure f = Triple f f f
+    (Triple f g h) <*> (Triple x y z) = Triple (f x) (g y) (h z)
+
+type Color = Triple Double
+
 
 -- | Preset colors
 red, green, blue, white, cyan, magenta, yellow :: Color
-red = [1, 0, 0]
-green = [0, 1, 0]
-blue = [0, 0, 1]
-white = [1, 1, 1]
+red = Triple 1 0 0
+green = Triple 0 1 0
+blue = Triple 0 0 1
+white = Triple 1 1 1
 
 cyan = mixColors green blue
 magenta = mixColors red blue
 yellow = mixColors red green
 
+
 scaleColor :: Color -> Double -> Color
-scaleColor color f = clampColor $ (*f) <$> color
+scaleColor color f = clampColor $ pure (*f) <*> color
+
 
 -- | Set color channels to be within range (0.0, 1.0) each.
 clampColor :: Color -> Color
-clampColor color = clamp <$> color where clamp x = max 0.0 (min 1.0 x)
+clampColor color = clamp <$> color
+    where clamp x = max 0.0 (min 1.0 x)
+
 
 mixColors :: Color -> Color -> Color
-mixColors c1 c2 = clampColor (liftM2 (+) c1 c2)
+mixColors c1 c2 = clampColor (liftA2 (+) c1 c2)
 
 
 -- | Generate numX * numY rays starting from camera plane parallel to
@@ -60,13 +78,13 @@ spawnRays :: Camera
           -> [Ray]
 spawnRays (Camera p d) numX numY scale =
     let
-        (n, sX, sY) = buildCartesian d
+        (n, sX, sY) = V.buildCartesian d
         xSteps = [-(numX `div` 2) .. (numX - 1) `div` 2]
-        ySteps = Prelude.reverse [-(numY `div` 2) .. (numY - 1) `div` 2]
+        ySteps = [-(numY `div` 2) .. (numY - 1) `div` 2]
     in
       [Particle (p
-                 <+> (sX *> (fromIntegral x) *> scale)
-                 <+> (sY *> (fromIntegral y) *> scale)) n
+                 V.<+> (sX V.*> (fromIntegral x) V.*> scale)
+                 V.<+> (sY V.*> (fromIntegral y) V.*> scale)) n
        | y <- ySteps, x <- xSteps]
 
 -- | Calculate color of ray.
@@ -83,14 +101,16 @@ rayCast ray b =
           let
               n = fromJust (snd (fst (head hitTrace)))
           in
-            scaleColor red ((Vector.reverse n) <*> (speed ray))
+            scaleColor red ((V.reverse n) V.<*> (speed ray))
 
+-- | Format color for use in PGM.
 pgmColor :: Color -> String
-pgmColor color = 
-    L.join " " $ show <$> rescale <$> color
-    where
-      rescale :: Double -> Int
-      rescale = round . (* 255)
+pgmColor color =
+    let
+      rescale = pure (round . (* 255))
+      (Triple r g b) = (pure show) <*> (rescale <*> color)
+    in
+      unwords [r, g, b]
 
 -- | Write list of pixel colors to PGM string.
 makePgm :: Int     -- ^ Image width
