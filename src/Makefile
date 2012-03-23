@@ -1,11 +1,13 @@
+.PHONY: doc
+
 all:
 	ghc --make Main.hs
 
 caster:
 	ghc --make Caster.hs
 
-gl:
-	ghc --make GL.hs
+doc:
+	haddock -o doc -h *.hs
 
 clean:
 	@rm -vrf `hg stat -u`
