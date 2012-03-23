@@ -64,12 +64,6 @@ type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
 -- trace may include several 'HitSegment's.
 type Trace = [HitSegment]
 
-
--- | Merge two overlapping segments.
-merge :: HitSegment -> HitSegment -> HitSegment
-merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
-
-
 -- | Overlap two overlapping segments.
 --
 -- If overlap results in a single point, then preserve real vectors
@@ -89,18 +83,22 @@ flipNormals ((x, u), (y, v)) = ((x, reverse <$> u),
                                 (y, reverse <$> v))
 
 
+-- | Unite two traces.
 uniteTraces :: Trace -> Trace -> Trace
-uniteTraces hsl1 (hs:t2) =
-    uniteTraces (unite' hsl1 hs) t2
+uniteTraces tr1 (hs:t2) =
+    uniteTraces (unite' tr1 hs) t2
     where
+      -- Merge two *overlapping* 'HitSegment's
+      merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
+      -- Unite trace with single 'HitSegment'
       unite' (hs1@(a1, b1):t1) hs2@(a, b)
           | b < a1 = hs2:hs1:t1
           | a > b1 = hs1:(unite' t1 hs2)
           | otherwise = unite' t1 (merge hs1 hs2)
       unite' [] hs2 = [hs2]
-uniteTraces hsl1 [] = hsl1
+uniteTraces tr1 [] = tr1
 
-
+-- | Intersect two traces.
 intersectTraces :: Trace -> Trace -> Trace
 intersectTraces tr1 tr2 =
     foldl uniteTraces [] (map (\hs -> intersect' tr1 hs) tr2)
