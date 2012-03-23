@@ -107,7 +107,7 @@ intersectTraces tr1 tr2 =
           | b < a1 = []
           | a > b1 = intersect' t1 hs2
           | otherwise = (overlap hs1 hs2):(intersect' t1 (min b b1, max b b1))
-      intersect' [] hs2 = []
+      intersect' [] _ = []
 
 
 -- | Complement to trace (normals flipped) in R³.
