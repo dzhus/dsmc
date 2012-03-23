@@ -24,11 +24,13 @@ module DSMC.Traceables
 
 where
 
+import Prelude hiding (reverse)
+
 import Data.Functor
 
 import DSMC.Particles
 import DSMC.Util
-import DSMC.Vector
+import DSMC.Util.Vector
 
 
 -- | HitSegment of a linearly-moving particle on a body is (one of)
@@ -83,8 +85,8 @@ overlap (a1, b1) (a2, b2) =
 
 -- | Reverse both normal vectors of segment.
 flipNormals :: HitSegment -> HitSegment
-flipNormals ((x, u), (y, v)) = ((x, Vector.reverse <$> u),
-                                (y, Vector.reverse <$> v))
+flipNormals ((x, u), (y, v)) = ((x, reverse <$> u),
+                                (y, reverse <$> v))
 
 
 uniteTraces :: Trace -> Trace -> Trace
