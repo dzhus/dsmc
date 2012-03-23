@@ -1,6 +1,6 @@
 -- | Raycasting traceable objects.
 
-module Raycast
+module DSMC.Traceables.Raycast
     ( Camera(..)
     , renderBodyPgm
     )
