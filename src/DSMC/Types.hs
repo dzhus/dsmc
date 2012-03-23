@@ -15,7 +15,7 @@ where
 import DSMC.Util.Vector
 
 
--- | Time in seconds
+-- | Time in seconds.
 type Time = Double
 
 
