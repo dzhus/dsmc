@@ -2,7 +2,7 @@
 
 Simulation domain definitions.
 
-|-}
+-}
 
 module DSMC.Domain
 
@@ -10,6 +10,7 @@ where
 
 import DSMC.Particles
 
+-- | Domain in which particle system evolution is simulated.
 data Domain = Box Double Double Double Double Double Double
               deriving Show
 
