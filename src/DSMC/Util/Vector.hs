@@ -1,6 +1,6 @@
 {-| Naive vector implementation. |-}
 
-module Vector
+module DSMC.Util.Vector
 
 where
 

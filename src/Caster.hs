@@ -1,8 +1,8 @@
--- | Standalone raycasting runner for traceable objects.
-
-module Main
-
-where
+{-|
+  
+Standalone raycasting runner for traceable objects.
+  
+|-}
 
 import Traceables
 import Raycast
