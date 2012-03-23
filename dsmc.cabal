@@ -12,11 +12,19 @@ cabal-version:       >=1.8
 
 
 library
-  exposed-modules:     Render, Caster, Macroscopic, Traceables, DSMC, Main, Particles, Raycast, Domain, Util, Vector, SexpParser
-  
+  ghc-options: -Wall
+  hs-source-dirs: src
+
+  exposed-modules:
+    DSMC,
+    DSMC.Traceables,
+    DSMC.Particles,
+    DSMC.Domain,
+    DSMC.Macroscopic
+
   -- Modules included in this library but not exported.
-  -- other-modules:       
-  
+  -- other-modules:
+
   -- Other library packages from which modules are imported.
-  -- build-depends:       
-  
+  build-depends:
+    base        == 4.*
