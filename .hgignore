@@ -1,4 +1,5 @@
 syntax: glob
+cabal-dev/
+dist/
 *.hi
 *.o
-doc/
