@@ -101,7 +101,7 @@ rayCast ray b =
           let
               n = fromJust (snd (fst (head hitTrace)))
           in
-            scaleColor red ((V.reverse n) V.<*> (speed ray))
+            scaleColor red ((V.reverse n) V.<*> (velocity ray))
 
 -- | Format color for use in PGM.
 pgmColor :: Color -> String
