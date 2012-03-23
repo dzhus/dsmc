@@ -1,4 +1,4 @@
-module Particles
+module DSMC.Particles
 
 where
 

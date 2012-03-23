@@ -1,11 +1,11 @@
 -- | Macroscopic parameters calculation.
 
-module Macroscopic
+module DSMC.Macroscopic
 
 where
 
-import Domain
-import Particles
+import DSMC.Domain
+import DSMC.Particles
 import Vector
 
 data Cell = Cell Point [Particle]

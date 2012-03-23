@@ -3,7 +3,7 @@
 -- | Body compositions for which particle trajectory intersections
 -- can be calculated.
 
-module Traceables
+module DSMC.Traceables
     ( -- * Traces
       HitSegment
     , Trace
