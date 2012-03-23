@@ -1,4 +1,8 @@
--- | Macroscopic parameters calculation.
+{-|
+
+Macroscopic variables calculation.
+
+-}
 
 module DSMC.Macroscopic
 
@@ -8,12 +12,26 @@ import DSMC.Domain
 import DSMC.Particles
 import DSMC.Util.Vector
 
+
+-- | Cell contains a list of particles and is used to calculate a
+-- macroscopic variable at single point of simulation domain.
 data Cell = Cell Point [Particle]
 
+
+-- | Macroscopic velocity.
 data Velocity = Velocity Point Vector
 
-circularCells :: Domain -> [Particle] -> Double -> [Cell]
-circularCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
+
+-- | Sort particles in domain to a list of spherical cells with given
+-- radius. Cells are centered at nodes regular grid with spatial step
+-- (in each direction) equal to radius.
+sphericalCells :: Domain 
+              -> [Particle] 
+              -- ^ All particles in domain.
+              -> Double
+              -- ^ Cell radius.
+              -> [Cell]
+sphericalCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
     [let
         cx = xmin + x * radius
         cy = ymin + y * radius
@@ -25,11 +43,14 @@ circularCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
              y <- [0 .. (ymax - ymin) / radius],
              z <- [0 .. (zmax - zmin) / radius]]
 
+
+-- | Calculate velocity for cell with particles.
 sampleVelocity :: Cell -> Velocity
 sampleVelocity (Cell point particles) =
     Velocity point (averageVelocity particles)
 
--- Calculate average velocity in a cell
+
+-- | Calculate average velocity for a list of particles.
 averageVelocity :: [Particle] -> Vector
 averageVelocity particles =
     (foldl (<+>) (0, 0, 0) (map velocity particles)) *> (1 / fromIntegral (length particles))
