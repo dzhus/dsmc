@@ -1,6 +1,6 @@
 name:                dsmc
 version:             0.1.0.0
-synopsis:            DSMC toolkit for rarefied gas dynamics
+synopsis:            DSMC library for rarefied gas dynamics
 license:             BSD3
 license-file:        LICENSE
 author:              Dmitry Dzhus
@@ -9,7 +9,7 @@ category:            Physics
 
 build-type:          Simple
 cabal-version:       >=1.8
-
+tested-with:         GHC == 7.4.1
 
 library
   ghc-options: -Wall
@@ -18,13 +18,14 @@ library
   exposed-modules:
     DSMC,
     DSMC.Traceables,
+    DSMC.Traceables.Raycast,
     DSMC.Particles,
     DSMC.Domain,
     DSMC.Macroscopic
 
-  -- Modules included in this library but not exported.
-  -- other-modules:
+  other-modules:
+    DSMC.Util,
+    DSMC.Util.Vector
 
-  -- Other library packages from which modules are imported.
   build-depends:
     base        == 4.*
