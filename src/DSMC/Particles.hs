@@ -2,14 +2,18 @@ module DSMC.Particles
 
 where
 
+import DSMC.Util
 import DSMC.Util.Vector
 
+-- | Gas particle with position and velocity.
 data Particle = Particle
                 {
                   position :: Point,
-                  speed :: Vector
+                  velocity :: Vector
                 }
                 deriving Show
 
--- Move particle for t time and update its position
-move t (Particle p speed) = (Particle (p <+> (speed *> t)) speed)
+-- | Linearly move particle for t time and update its position.
+move :: Time -> Particle -> Particle
+move dt p@(Particle pos velocity) =
+    p{position = pos <+> (velocity *> dt)}

@@ -16,9 +16,9 @@ import DSMC.Util.Vector
 -- (not positive)
 reflectSpecular :: Particle -> Vector -> Time -> Particle
 reflectSpecular p n t =
-    move (-1 * t) p{speed = v <-> (n *> (v <*> n) *> 2)}
+    move (-1 * t) p{velocity = v <-> (n *> (v <*> n) *> 2)}
     where
-      v = speed p
+      v = velocity p
 
 -- A very small amount of time for which the particle is moved after
 -- reflecting from body surface.

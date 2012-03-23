@@ -10,7 +10,7 @@ import DSMC.Util.Vector
 
 data Cell = Cell Point [Particle]
 
-data Speed = Speed Point Vector
+data Velocity = Velocity Point Vector
 
 circularCells :: Domain -> [Particle] -> Double -> [Cell]
 circularCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
@@ -25,11 +25,11 @@ circularCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
              y <- [0 .. (ymax - ymin) / radius],
              z <- [0 .. (zmax - zmin) / radius]]
 
-sampleSpeed :: Cell -> Speed
-sampleSpeed (Cell point particles) =
-    Speed point (averageSpeed particles)
+sampleVelocity :: Cell -> Velocity
+sampleVelocity (Cell point particles) =
+    Velocity point (averageVelocity particles)
 
--- Calculate average speed in a cell
-averageSpeed :: [Particle] -> Vector
-averageSpeed particles =
-    (foldl (<+>) (0, 0, 0) (map speed particles)) *> (1 / fromIntegral (length particles))
+-- Calculate average velocity in a cell
+averageVelocity :: [Particle] -> Vector
+averageVelocity particles =
+    (foldl (<+>) (0, 0, 0) (map velocity particles)) *> (1 / fromIntegral (length particles))
