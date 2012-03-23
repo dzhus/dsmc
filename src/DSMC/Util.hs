@@ -4,14 +4,21 @@ module DSMC.Util
 
 where
 
+-- | Time in seconds
 type Time = Double
 
 -- | Infinity definition for 'RealFloat'.
+infinityP :: Double
 infinityP = 1 / 0
+
+-- | Negative infinity.
+infinityN :: Double
 infinityN = -infinityP
 
--- Solve quadratic equation
-solveq :: (Double, Double, Double) -> Maybe (Double, Double)
+-- | Solve quadratic equation
+solveq :: (Double, Double, Double)
+       -- ^ Coefficients
+       -> Maybe (Double, Double)
 solveq (a, b, c)
     | (d >  0) = Just ((- b - sqrt d) / (2 * a), (- b + sqrt d) / (2 * a))
     | (d <= 0) = Nothing
