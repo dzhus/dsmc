@@ -12,10 +12,10 @@ import Data.Functor
 
 import Data.Maybe
 
-import Particles
-import Traceables
-import Util
-import qualified Vector as V
+import DSMC.Particles
+import DSMC.Traceables
+import DSMC.Util
+import qualified DSMC.Util.Vector as V
 
 
 type Ray = Particle
