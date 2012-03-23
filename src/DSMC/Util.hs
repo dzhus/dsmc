@@ -1,6 +1,11 @@
 -- | Utility definitions used in various parts of the program.
 
 module DSMC.Util
+    ( Time
+    , infinityP
+    , infinityN
+    , solveq
+    )
 
 where
 
