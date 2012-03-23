@@ -5,10 +5,10 @@ where
 import Control.Monad
 import Data.Maybe
 
-import Particles
-import Traceables
-import Util
-import Vector
+import DSMC.Particles
+import DSMC.Traceables
+import DSMC.Util
+import DSMC.Util.Vector
 
 
 -- Update particle position and velocity after specular hit given a

@@ -1,6 +1,6 @@
 -- | Utility definitions used in various parts of the program.
 
-module Util
+module DSMC.Util
 
 where
 

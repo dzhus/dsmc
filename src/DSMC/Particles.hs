@@ -2,7 +2,7 @@ module DSMC.Particles
 
 where
 
-import Vector
+import DSMC.Util.Vector
 
 data Particle = Particle
                 {

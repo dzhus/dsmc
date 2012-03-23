@@ -6,7 +6,7 @@ where
 
 import DSMC.Domain
 import DSMC.Particles
-import Vector
+import DSMC.Util.Vector
 
 data Cell = Cell Point [Particle]
 

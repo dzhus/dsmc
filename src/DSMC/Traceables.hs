@@ -26,9 +26,9 @@ where
 
 import Data.Functor
 
-import Particles
-import Util
-import Vector
+import DSMC.Particles
+import DSMC.Util
+import DSMC.Vector
 
 
 -- | HitSegment of a linearly-moving particle on a body is (one of)
