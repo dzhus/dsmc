@@ -15,4 +15,4 @@ import DSMC.Util.Vector
 -- | Linearly move particle for t time and update its position.
 move :: Time -> Particle -> Particle
 move dt p@(Particle pos velocity) =
-    p{position = pos <+> (velocity *> dt)}
+    p{position = pos + (velocity `scale` dt)}

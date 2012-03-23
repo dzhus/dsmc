@@ -35,7 +35,7 @@ sphericalCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
         cx = xmin + x * radius
         cy = ymin + y * radius
         cz = zmin + z * radius
-        c = (cx, cy, cz)
+        c = (Vector cx cy cz)
      in
        (Cell c (filter (\p -> (distance (position p) c) < radius) particles))
            | x <- [0 .. (xmax - xmin) / radius],
@@ -52,4 +52,7 @@ sampleVelocity (Cell point particles) =
 -- | Calculate average velocity for a list of particles.
 averageVelocity :: [Particle] -> Vector
 averageVelocity particles =
-    (foldl (<+>) (0, 0, 0) (map velocity particles)) *> (1 / fromIntegral (length particles))
+    let
+        weight = 1 / fromIntegral (length particles)
+    in
+    (foldl (+) (Vector 0 0 0) (map velocity particles)) `scale` weight

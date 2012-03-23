@@ -11,10 +11,12 @@ module DSMC.Domain
 where
 
 import DSMC.Types
+import DSMC.Util.Vector
+
 
 -- | Test if particle is in domain.
 inDomain :: Domain -> Particle -> Bool
-inDomain (Box xmin xmax ymin ymax zmin zmax) (Particle (x, y, z) _) =
+inDomain (Box xmin xmax ymin ymax zmin zmax) (Particle (Vector x y z) _) =
     xmax >= x && x >= xmin &&
     ymax >= y && y >= ymin &&
     zmax >= z && z >= zmin

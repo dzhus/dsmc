@@ -7,6 +7,8 @@ module DSMC.Traceables.Raycast
 
 where
 
+import Prelude hiding (reverse)
+
 import Control.Applicative
 import Data.Functor
 
@@ -16,16 +18,16 @@ import DSMC.Particles
 import DSMC.Traceables
 import DSMC.Types
 import DSMC.Util
-import qualified DSMC.Util.Vector as V
+import DSMC.Util.Vector
 
 
 type Ray = Particle
 
 
 -- | Observation point.
-data Camera = Camera { position :: V.Point
+data Camera = Camera { position :: Point
                      -- ^ Absolute camera position
-                     , direction :: V.Vector
+                     , direction :: Vector
                      -- ^ View direction
                      }
 
@@ -77,15 +79,15 @@ spawnRays :: Camera
           -> Int        -- ^ Number of rays by vertical axis
           -> Double     -- ^ Viewport scale
           -> [Ray]
-spawnRays (Camera p d) numX numY scale =
+spawnRays (Camera p d) numX numY viewScale =
     let
-        (n, sX, sY) = V.buildCartesian d
+        (n, sX, sY) = buildCartesian d
         xSteps = [-(numX `div` 2) .. (numX - 1) `div` 2]
         ySteps = [-(numY `div` 2) .. (numY - 1) `div` 2]
     in
       [Particle (p
-                 V.<+> (sX V.*> (fromIntegral x) V.*> scale)
-                 V.<+> (sY V.*> (fromIntegral y) V.*> scale)) n
+                 + (sX `scale` (fromIntegral x) `scale` viewScale)
+                 + (sY `scale` (fromIntegral y) `scale` viewScale)) n
        | y <- ySteps, x <- xSteps]
 
 -- | Calculate color of ray.
@@ -102,7 +104,7 @@ rayCast ray b =
           let
               n = fromJust (snd (fst (head hitTrace)))
           in
-            scaleColor red ((V.reverse n) V.<*> (velocity ray))
+            scaleColor red ((reverse n) .* (velocity ray))
 
 -- | Format color for use in PGM.
 pgmColor :: Color -> String
@@ -131,5 +133,5 @@ renderBodyPgm :: Camera
               -> Int    -- ^ Image height
               -> Double -- ^ Viewport scale
               -> String
-renderBodyPgm cam b x y scale =
-    makePgm x y (map (\p -> rayCast p b) (spawnRays cam x y scale))
+renderBodyPgm cam b x y viewScale =
+    makePgm x y (map (\p -> rayCast p b) (spawnRays cam x y viewScale))

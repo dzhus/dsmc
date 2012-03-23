@@ -161,19 +161,19 @@ plane n d =
     where
       thisTrace (Particle pos v) =
           let
-            f = -(n <*> v)
+            f = -(n .* v)
             nn = normalize n
           in
             if f == 0
             then []
             else
                 let
-                    t = (pos <*> n + d) / f
+                    t = (pos .* n + d) / f
                 in
                   if f > 0
                   then [((t, Just nn), (infinityP, Nothing))]
                   else [((infinityN, Nothing), (t, Just nn))]
-      thisInside (Particle pos _) = (pos <*> n + d) < 0
+      thisInside (Particle pos _) = (pos .* n + d) < 0
 
 
 -- | Ball defined by center point and radius.
@@ -183,9 +183,9 @@ sphere c r =
     where
       thisTrace p@(Particle pos v) =
           let
-              d = pos <-> c
-              roots = solveq ((v <*> v), (v <*> d * 2), (d <*> d - r ^ 2))
-              normal p = normalize (p <-> c)
+              d = pos - c
+              roots = solveq ((v .* v), (v .* d * 2), (d .* d - r * r))
+              normal u = normalize (u - c)
           in
             traceQuadratic p roots normal
       thisInside (Particle pos _) = (distance pos c) < r
@@ -200,12 +200,12 @@ cylinder n c r =
     where
       thisTrace p@(Particle pos v) =
           let
-              d = (pos <-> c) <×> n
-              e = v <×> n
-              roots = solveq ((e <*> e), (d <*> e * 2), (d <*> d - r ^ 2))
-              normal p = nor
-                  where nor = normalize (h <-> (nn *> (h <*> nn)))
-                        h = p <-> c
+              d = (pos - c) * n
+              e = v * n
+              roots = solveq ((e .* e), (d .* e * 2), (d .* d - r * r))
+              normal u = nor
+                  where nor = normalize (h - (nn .^ (h .* nn)))
+                        h = u - c
                         nn = normalize n
           in
             traceQuadratic p roots normal
