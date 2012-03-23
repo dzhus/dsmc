@@ -217,23 +217,32 @@
    если используются сферы), вычисляем значение параметра, осредняя
    частные значения по всем частицам в ячейке.
 * Направления оптимизации
-
+  http://www.haskell.org/haskellwiki/Performance/GHC
 ** TODO solveq
 
 ** TODO Мемоизация результатов processParticle
    Частица может попасть в несколько ячеек при вычислении
    макроскопических параметров (без мемоизации замедляется).
-** TODO Быстрые вектора
-   Распаковать типы
+** Типы
+  http://www.haskell.org/haskellwiki/Performance/Datatypes   
+*** TODO Быстрые вектора
+    Строгие типы + unboxing
 
-   Vector !Double !Double !Double
-** MAYBE Traceables
-   - improve uniteTraces & intersectTraces
-     
-   - a different type for HitSegment? Not tuples but custom datatype
-     with unboxed values.
+    Vector !Double !Double !Double
+*** MAYBE Traceables
+    - improve uniteTraces & intersectTraces
+      
+    - a different type for HitSegment? Not tuples but custom datatype
+      with unboxed values.
 ** MAYBE -optc-ffast-math
    Can't use straight away now since we use infinityP/infinityN
+** IN_PROGRESS Export lists
+
+   For best results, use an explicit export list. If you do, GHC can
+   inline any non-exported functions that are only called once, even
+   if they are very big. Without an explicit export list, GHC must
+   assume that every function is exported, and hence (to avoid code
+   bloat) is more conservative about inlining.
 * Интеграция
 ** Haskell-библиотека Implicit (CSG)
    https://github.com/colah/ImplicitCAD
