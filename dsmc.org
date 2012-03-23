@@ -1,3 +1,5 @@
+#+SEQ_TODO: MAYBE TODO IN_PROGRESS | DONE
+
 * Граничные условия на тело
 ** Как у нас
    Считаем время до соударения с плоскостью. Если оно положительная,
@@ -111,7 +113,8 @@
 **** TODO Исправить функцию buildCartesian
      Не работает при x, y = 0
 *** Marching Cubes
-    Тесселизация скалярного поля как бы. Требуется только insideBody.
+    Тесселизация скалярного поля (у нас бинарного) как бы. Требуется
+    только insideBody!
 *** OpenGL
     См. работу Nigel Stewart.
 
@@ -224,9 +227,13 @@
    Распаковать типы
 
    Vector !Double !Double !Double
-* GUI
-  Интерфейс должен позволять задание параметров набегающего потока,
-  геометрии тела, запуск расчёта и просмотр результатов.
+** MAYBE Traceables
+   - improve uniteTraces & intersectTraces
+     
+   - a different type for HitSegment? Not tuples but custom datatype
+     with unboxed values.
+** MAYBE -optc-ffast-math
+   Can't use straight away now since we use infinityP/infinityN
 * Интеграция
 ** Haskell-библиотека Implicit (CSG)
    https://github.com/colah/ImplicitCAD
@@ -236,5 +243,6 @@
    
 * Прочие задачи
 ** TODO Выполнять предварительную обработку тел
-   - [ ] внести дополнительный тип для векторов нормалей со смыслом
-     «вектор единичной длины»;
+   - [ ] force normalization for normal vectors;
+** MAYBE Domain implementation
+   Use message-passing instead of pattern-matching?
