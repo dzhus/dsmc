@@ -8,8 +8,7 @@ module DSMC.Macroscopic
 
 where
 
-import DSMC.Domain
-import DSMC.Particles
+import DSMC.Types
 import DSMC.Util.Vector
 
 

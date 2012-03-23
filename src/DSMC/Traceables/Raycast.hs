@@ -14,6 +14,7 @@ import Data.Maybe
 
 import DSMC.Particles
 import DSMC.Traceables
+import DSMC.Types
 import DSMC.Util
 import qualified DSMC.Util.Vector as V
 

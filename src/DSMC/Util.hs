@@ -1,16 +1,12 @@
 -- | Utility definitions used in various parts of the program.
 
 module DSMC.Util
-    ( Time
-    , infinityP
+    ( infinityP
     , infinityN
     , solveq
     )
 
 where
-
--- | Time in seconds
-type Time = Double
 
 -- | Infinity definition for 'RealFloat'.
 infinityP :: Double

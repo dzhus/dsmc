@@ -1,6 +1,6 @@
 {-|
 
-Particle definitions.
+Particle operations.
 
 -}
 
@@ -8,17 +8,8 @@ module DSMC.Particles
 
 where
 
-import DSMC.Util
+import DSMC.Types
 import DSMC.Util.Vector
-
-
--- | Gas particle with position and velocity.
-data Particle = Particle
-                {
-                  position :: Point,
-                  velocity :: Vector
-                }
-                deriving Show
 
 
 -- | Linearly move particle for t time and update its position.

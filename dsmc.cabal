@@ -20,13 +20,16 @@ library
     DSMC.Traceables,
     DSMC.Traceables.Raycast,
     DSMC.Traceables.SexParser,
-    DSMC.Particles,
-    DSMC.Domain,
-    DSMC.Macroscopic
-
-  other-modules:
-    DSMC.Util,
+    DSMC.Types,
+    DSMC.Macroscopic,
     DSMC.Util.Vector
 
+  other-modules:
+    DSMC.Domain,
+    DSMC.Particles,
+    DSMC.Util
+
   build-depends:
-    base        == 4.*
+    attoparsec  == 0.10.*,
+    base        == 4.*,
+    bytestring  == 0.9.*

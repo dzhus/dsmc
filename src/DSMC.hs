@@ -12,8 +12,8 @@ where
 import Data.Maybe
 
 import DSMC.Particles
+import DSMC.Types
 import DSMC.Traceables
-import DSMC.Util
 import DSMC.Util.Vector
 
 
@@ -56,6 +56,7 @@ hit dt b p =
 -- | Remove particles which accidentally ended up inside body.
 clipBody :: Body -> [Particle] -> [Particle]
 clipBody body particles = filter (\p -> not (inside body p)) particles
+
 
 -- | Collisionless flow simulation step.
 --

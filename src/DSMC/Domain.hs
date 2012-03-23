@@ -1,20 +1,16 @@
 {-|
 
-Simulation domain definitions.
+Simulation domain operations.
 
 -}
 
 module DSMC.Domain
+    ( clipDomain
+    )
 
 where
 
-import DSMC.Particles
-
-
--- | Domain in which particle system evolution is simulated.
-data Domain = Box Double Double Double Double Double Double
-              deriving Show
-
+import DSMC.Types
 
 -- | Test if particle is in domain.
 inDomain :: Domain -> Particle -> Bool
