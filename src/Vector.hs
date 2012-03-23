@@ -1,3 +1,5 @@
+{-| Naive vector implementation. |-}
+
 module Vector
 
 where
