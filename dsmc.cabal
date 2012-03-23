@@ -19,6 +19,7 @@ library
     DSMC,
     DSMC.Traceables,
     DSMC.Traceables.Raycast,
+    DSMC.Traceables.SexParser,
     DSMC.Particles,
     DSMC.Domain,
     DSMC.Macroscopic
