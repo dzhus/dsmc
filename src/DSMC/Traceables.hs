@@ -27,6 +27,7 @@ where
 import Prelude hiding (reverse)
 
 import Data.Functor
+import Data.List (foldl')
 
 import DSMC.Particles
 import DSMC.Types
@@ -102,7 +103,7 @@ uniteTraces tr1 [] = tr1
 -- | Intersect two traces.
 intersectTraces :: Trace -> Trace -> Trace
 intersectTraces tr1 tr2 =
-    foldl uniteTraces [] (map (\hs -> intersect' tr1 hs) tr2)
+    foldl' uniteTraces [] (map (\hs -> intersect' tr1 hs) tr2)
     where
       intersect' (hs1@(a1, b1):t1) hs2@(a, b)
           | b < a1 = []
@@ -220,7 +221,7 @@ union bodies =
           let
               t:ts = map (flip trace p) bodies
           in
-            foldl uniteTraces t ts
+            foldl' uniteTraces t ts
       thisInside p = and (map (flip inside p) bodies)
 
 -- | Intersection of bodies.
@@ -232,7 +233,7 @@ intersection bodies =
           let
               t:ts = map (flip trace p) bodies
           in
-            foldl intersectTraces t ts
+            foldl' intersectTraces t ts
       thisInside p = or (map (flip inside p) bodies)
 
 -- | Complement to body in universe R³ (normals flipped).
