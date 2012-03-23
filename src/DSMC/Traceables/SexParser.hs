@@ -11,7 +11,7 @@
 --
 -- We use custom types till Traceables are implemented.
 
-module DSMC.Traceables.SexpParser
+module DSMC.Traceables.SexParser
 
 where
 
