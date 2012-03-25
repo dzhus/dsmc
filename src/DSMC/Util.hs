@@ -1,4 +1,4 @@
--- | Utility definitions used in various parts of the program.
+-- | Utility functions.
 
 module DSMC.Util
     ( solveq
@@ -6,12 +6,19 @@ module DSMC.Util
 
 where
 
--- | Solve quadratic equation
+-- | Solve quadratic equation.
+--
+-- If less than two roots exist, Nothing is returned.
 solveq :: (Double, Double, Double)
        -- ^ Coefficients
        -> Maybe (Double, Double)
 solveq (a, b, c)
-    | (d >  0) = Just ((- b - sqrt d) / (2 * a), (- b + sqrt d) / (2 * a))
+    | (d >  0) = Just (r - s, r + s)
     | (d <= 0) = Nothing
     where
-      d = b * b - 4 * a * c
+      d =   b * b - 4 * a * c
+      q =   sqrt d
+      t =   2 * a
+      r = - b / t
+      s =   q / t
+{-# INLINE solveq #-}
