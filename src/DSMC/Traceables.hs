@@ -79,25 +79,6 @@ infinityN :: Double
 infinityN = -infinityP
 
 
--- | Overlap two overlapping segments.
---
--- If overlap results in a single point, then preserve real vectors
--- over Nothing.
-overlap :: HitSegment -> HitSegment -> HitSegment
-overlap (a1, b1) (a2, b2) =
-    collapsePoint (max a1 a2, min b1 b2)
-        where
-          collapsePoint (f@(x, u), s@(y, v)) = if x == y
-                                               then ((x, max u v), (y, max u v))
-                                               else (f, s)
-
-
--- | Reverse both normal vectors of segment.
-flipNormals :: HitSegment -> HitSegment
-flipNormals ((x, u), (y, v)) = ((x, reverse <$> u),
-                                (y, reverse <$> v))
-
-
 -- | Unite two traces.
 uniteTraces :: Trace -> Trace -> Trace
 uniteTraces tr1 (hs:t2) =
@@ -105,6 +86,7 @@ uniteTraces tr1 (hs:t2) =
     where
       -- Merge two *overlapping* 'HitSegment's
       merge (a1, b1) (a2, b2) = (min a1 a2, max b1 b2)
+      {-# INLINE merge #-}
       -- Unite trace with single 'HitSegment'
       unite' (hs1@(a1, b1):t1) hs2@(a, b)
           | b < a1 = hs2:hs1:t1
@@ -118,6 +100,18 @@ intersectTraces :: Trace -> Trace -> Trace
 intersectTraces tr1 tr2 =
     foldl' uniteTraces [] (map (\hs -> intersect' tr1 hs) tr2)
     where
+      -- Overlap two overlapping segments.
+      --
+      -- If overlap results in a single point, then preserve real vectors
+      -- over Nothing.
+      overlap (a1, b1) (a2, b2) =
+          collapsePoint (max a1 a2, min b1 b2)
+          where
+            collapsePoint (f@(x, u), s@(y, v)) = 
+                if x == y
+                then ((x, max u v), (y, max u v))
+                else (f, s)
+      {-# INLINE overlap #-}
       intersect' (hs1@(a1, b1):t1) hs2@(a, b)
           | b < a1 = []
           | a > b1 = intersect' t1 hs2
@@ -130,6 +124,9 @@ complementTraces :: Trace -> Trace
 complementTraces (x:xs) =
     start ++ (complementTraces' (snd x) xs)
     where
+      flipNormals ((a, u), (b, v)) = ((a, reverse <$> u),
+                                      (b, reverse <$> v))
+      {-# INLINE flipNormals #-}
       start = if (isInfinite (fst (fst x)))
               then []
               else [flipNormals ((infinityN, Nothing), fst x)]
@@ -173,10 +170,10 @@ plane :: Vector -> Double -> Body
 plane n d =
     Body thisTrace thisInside
     where
+      nn = normalize n
       thisTrace (Particle pos v) =
           let
             f = -(n .* v)
-            nn = normalize n
           in
             if f == 0
             then []
@@ -212,15 +209,16 @@ cylinder :: Vector -> Point -> Double -> Body
 cylinder n c r =
     Body thisTrace thisInside
     where
+      r2 = r * r
+      nn = normalize n
       thisTrace p@(Particle pos v) =
           let
               d = (pos <-> c) >< n
               e = v >< n
-              roots = solveq ((e .* e), (d .* e * 2), (d .* d - r * r))
+              roots = solveq ((e .* e), (d .* e * 2), (d .* d - r2))
               normal u = nor
                   where nor = normalize (h <-> (nn .^ (h .* nn)))
                         h = u <-> c
-                        nn = normalize n
           in
             traceQuadratic p roots normal
       thisInside _ = False
