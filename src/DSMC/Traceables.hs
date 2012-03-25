@@ -20,6 +20,9 @@ module DSMC.Traceables
     , union
     , intersection
     , complement
+    -- * Infinity definitions
+    , infinityP
+    , infinityN
     )
 
 where
@@ -65,6 +68,16 @@ type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
 -- higher-than-2 order surfaces or complex bodies), thus its full
 -- trace may include several 'HitSegment's.
 type Trace = [HitSegment]
+
+
+-- | Infinity definition for 'RealFloat'.
+infinityP :: Double
+infinityP = 1 / 0
+
+-- | Negative infinity.
+infinityN :: Double
+infinityN = -infinityP
+
 
 -- | Overlap two overlapping segments.
 --
@@ -184,9 +197,9 @@ sphere c r =
     where
       thisTrace p@(Particle pos v) =
           let
-              d = pos - c
+              d = pos <-> c
               roots = solveq ((v .* v), (v .* d * 2), (d .* d - r * r))
-              normal u = normalize (u - c)
+              normal u = normalize (u <-> c)
           in
             traceQuadratic p roots normal
       thisInside (Particle pos _) = (distance pos c) < r
@@ -201,12 +214,12 @@ cylinder n c r =
     where
       thisTrace p@(Particle pos v) =
           let
-              d = (pos - c) * n
-              e = v * n
+              d = (pos <-> c) >< n
+              e = v >< n
               roots = solveq ((e .* e), (d .* e * 2), (d .* d - r * r))
               normal u = nor
-                  where nor = normalize (h - (nn .^ (h .* nn)))
-                        h = u - c
+                  where nor = normalize (h <-> (nn .^ (h .* nn)))
+                        h = u <-> c
                         nn = normalize n
           in
             traceQuadratic p roots normal

@@ -57,4 +57,4 @@ averageVelocity particles =
     let
         weight = 1 / fromIntegral (length particles)
     in
-    (foldl' (+) (Vector 0 0 0) (map velocity particles)) `scale` weight
+    (foldl' (<+>) (Vector 0 0 0) (map velocity particles)) .^ weight

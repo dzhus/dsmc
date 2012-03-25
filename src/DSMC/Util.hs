@@ -1,20 +1,10 @@
 -- | Utility definitions used in various parts of the program.
 
 module DSMC.Util
-    ( infinityP
-    , infinityN
-    , solveq
+    ( solveq
     )
 
 where
-
--- | Infinity definition for 'RealFloat'.
-infinityP :: Double
-infinityP = 1 / 0
-
--- | Negative infinity.
-infinityN :: Double
-infinityN = -infinityP
 
 -- | Solve quadratic equation
 solveq :: (Double, Double, Double)
