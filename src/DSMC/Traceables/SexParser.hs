@@ -73,6 +73,7 @@ primitive :: Parser T.Body
 primitive = plane <|> cylinder <|> sphere
 
 
+-- | @(not obj1)@
 complement :: Parser T.Body
 complement = T.complement <$> (string "not" *> skipSpace *> objParser)
 
@@ -82,10 +83,11 @@ naryOperation :: ByteString -> Parser [T.Body]
 naryOperation opName = (string opName *> (many (skipSpace *> objParser)))
 
 
+-- | @(or obj1 obj2 …)@
 union :: Parser T.Body
 union = liftM T.union $ naryOperation "or"
 
-
+-- | @(and obj1 obj2 …)@
 intersection :: Parser T.Body
 intersection = liftM T.intersection $ naryOperation "and"
 
