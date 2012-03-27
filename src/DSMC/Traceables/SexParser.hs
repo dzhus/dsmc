@@ -18,7 +18,7 @@ where
 import Control.Applicative
 import Control.Monad
 import Data.Attoparsec.Char8
-import Data.ByteString as B
+import Data.ByteString
 
 import qualified DSMC.Traceables as T
 import DSMC.Util.Vector
