@@ -16,7 +16,6 @@ module DSMC.Traceables.SexParser
 where
 
 import Control.Applicative
-import Control.Monad
 import Data.Attoparsec.Char8
 import Data.ByteString
 
@@ -85,11 +84,11 @@ naryOperation opName = (string opName *> (many (skipSpace *> objParser)))
 
 -- | @(or obj1 obj2 …)@
 union :: Parser T.Body
-union = liftM T.union $ naryOperation "or"
+union = T.union <$> naryOperation "or"
 
 -- | @(and obj1 obj2 …)@
 intersection :: Parser T.Body
-intersection = liftM T.intersection $ naryOperation "and"
+intersection = T.intersection <$> naryOperation "and"
 
 
 objParser :: Parser T.Body
