@@ -17,6 +17,7 @@ module DSMC.Traceables
     , plane
     , sphere
     , cylinder
+    , cone
     , union
     , intersection
     , complement
@@ -201,6 +202,7 @@ sphere c r =
             traceQuadratic p roots normal
       thisInside (Particle pos _) = (distance pos c) < r
 
+
 -- | Infinite cylinder defined by vector collinear to axis, point on
 -- axis and radius.
 --
@@ -216,12 +218,52 @@ cylinder n c r =
               d = (pos <-> c) >< n
               e = v >< n
               roots = solveq ((e .* e), (d .* e * 2), (d .* d - r2))
-              normal u = nor
-                  where nor = normalize (h <-> (nn .^ (h .* nn)))
-                        h = u <-> c
+              normal u = normalize $ h <-> (nn .^ (h .* nn))
+                  where h = u <-> c
           in
             traceQuadratic p roots normal
-      thisInside _ = False
+      thisInside (Particle pos _) =
+          let
+              d = (pos <-> c)
+              s = nn .^ (d .* nn)
+              rn = d <-> s
+          in
+            (norm rn) < r
+
+
+cone :: Vector
+     -- ^ Cone axis direction (from vertex to inside)
+     -> Point 
+     -- ^ Cone vertex
+     -> Double
+     -- ^ Angle between axis and outer edge, in radians.
+     -> Body
+cone n c a = 
+    Body thisTrace thisInside
+    where
+      nn = normalize n
+      a' = cos a
+      gamma = diag (-a' * a')
+      thisTrace p@(Particle pos v) =
+          let
+              delta = pos <-> c
+              m = addM (nn `vxv` nn) gamma
+              c2 = dotM v     v     m
+              c1 = dotM v     delta m
+              c0 = dotM delta delta m
+              roots = solveq (c2, 2 * c1, c0)
+              normal u = normalize $ nx .^ (1 / ta)  <-> ny .^ ta
+                  where h = c <-> u
+                        -- Component of h parallel to cone axis
+                        ny' = nn .^ (nn .* h)
+                        ny = normalize ny'
+                        -- Perpendicular component
+                        nx = normalize $ h <-> ny'
+                        ta = tan a
+          in
+            traceQuadratic p roots normal
+      thisInside _ = True
+
 
 -- | Union of bodies.
 union :: [Body] -> Body
