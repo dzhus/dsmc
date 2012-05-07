@@ -253,7 +253,7 @@ cone n c a =
               c0 = dotM delta delta m
               roots = solveq (c2, 2 * c1, c0)
               normal u = normalize $ nx .^ (1 / ta)  <-> ny .^ ta
-                  where h = c <-> u
+                  where h = u <-> c
                         -- Component of h parallel to cone axis
                         ny' = nn .^ (nn .* h)
                         ny = normalize ny'
