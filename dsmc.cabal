@@ -16,9 +16,7 @@ library
   hs-source-dirs: src
 
   exposed-modules:
-    DSMC,
     DSMC.Traceables,
-    DSMC.Traceables.SexParser,
     DSMC.Types,
     DSMC.Macroscopic,
     DSMC.Util.Vector

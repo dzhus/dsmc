@@ -53,30 +53,8 @@ plane = T.plane <$> (string "plane" *> skipSpace *> vector)
                   <*> (skipSpace *> double)
 
 
--- | Read cylinder.
---
--- @(cylinder (x y z) (px py pz) r)@
-cylinder :: Parser T.Body
-cylinder = T.cylinder <$> (string "cylinder" *> skipSpace *> vector)
-                        <*> (skipSpace *> vector)
-                        <*> (skipSpace *> double)
-
-
--- | Read sphere.
---
--- @(sphere (x y z) r)@
-sphere :: Parser T.Body
-sphere = T.sphere <$> (string "sphere" *> skipSpace *> vector)
-                    <*> (skipSpace *> double)
-
-
 primitive :: Parser T.Body
-primitive = plane <|> cylinder <|> sphere
-
-
--- | @(not obj1)@
-complement :: Parser T.Body
-complement = T.complement <$> (string "not" *> skipSpace *> objParser)
+primitive = plane
 
 
 -- | Build parser for @(opName obj1 obj2 ...)@
@@ -94,7 +72,7 @@ intersection = T.intersection <$> naryOperation "and"
 
 
 objParser :: Parser T.Body
-objParser = lp *> (primitive <|> union <|> intersection <|> complement) <* rp
+objParser = lp *> (primitive <|> union <|> intersection) <* rp
 
 
 -- | Try to read body definition from bytestring.
