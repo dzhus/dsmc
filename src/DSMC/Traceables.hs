@@ -121,12 +121,13 @@ intersectTraces tr1 tr2 =
 
 
 -- | Complement to trace (normals flipped) in R³.
-complementTraces :: Trace -> Trace
-complementTraces (x:xs) =
+complementTraces :: Bool -> Trace -> Trace
+complementTraces doFlip (x:xs) =
     start ++ (complementTraces' (snd x) xs)
     where
-      flipNormals ((a, u), (b, v)) = ((a, reverse <$> u),
-                                      (b, reverse <$> v))
+      flipNormals s@((a, u), (b, v)) = if doFlip then ((a, reverse <$> u),
+                                                       (b, reverse <$> v))
+                                       else s
       {-# INLINE flipNormals #-}
       start = if (isInfinite (fst (fst x)))
               then []
@@ -135,7 +136,7 @@ complementTraces (x:xs) =
       complementTraces' c [] = if (isInfinite (fst c))
                          then []
                          else [flipNormals (c, (infinityP, Nothing))]
-complementTraces [] = [((infinityN, Nothing), (infinityP, Nothing))]
+complementTraces _ [] = [((infinityN, Nothing), (infinityP, Nothing))]
 
 
 -- | Body for which particle trace and membership can be calculated.
@@ -239,7 +240,7 @@ cone :: Vector
      -- ^ Angle between axis and outer edge, in radians.
      -> Body
 cone n c a = 
-    Body thisTrace thisInside
+    intersection [plane (reverse n) (-(norm c)), Body thisTrace thisInside]
     where
       nn = normalize n
       a' = cos a
@@ -260,8 +261,9 @@ cone n c a =
                         -- Perpendicular component
                         nx = normalize $ h <-> ny'
                         ta = tan a
+              tr = traceQuadratic p roots normal
           in
-            traceQuadratic p roots normal
+            if (v .* nn) / (norm v) < a' then tr else complementTraces False tr
       thisInside _ = True
 
 
@@ -294,5 +296,5 @@ complement :: Body -> Body
 complement body =
     Body thisTrace thisInside
     where
-      thisTrace p = complementTraces $ flip trace p body
+      thisTrace p = complementTraces True $ flip trace p body
       thisInside p = not $ inside body p
