@@ -12,6 +12,8 @@
 -- We use custom types till Traceables are implemented.
 
 module DSMC.Traceables.SexParser
+    ( parseBody
+    )
 
 where
 
@@ -77,16 +79,16 @@ complement :: Parser T.Body
 complement = T.complement <$> (string "not" *> skipSpace *> objParser)
 
 
--- | Build parser for @(opName obj1 obj2 …)@
+-- | Build parser for @(opName obj1 obj2 ...)@
 naryOperation :: ByteString -> Parser [T.Body]
 naryOperation opName = (string opName *> (many (skipSpace *> objParser)))
 
 
--- | @(or obj1 obj2 …)@
+-- | @(or obj1 obj2 ...)@
 union :: Parser T.Body
 union = T.union <$> naryOperation "or"
 
--- | @(and obj1 obj2 …)@
+-- | @(and obj1 obj2 ...)@
 intersection :: Parser T.Body
 intersection = T.intersection <$> naryOperation "and"
 

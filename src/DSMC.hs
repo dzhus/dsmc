@@ -60,9 +60,9 @@ clipBody body particles = filter (\p -> not (inside body p)) particles
 
 -- | Collisionless flow simulation step.
 --
--- Given a list of particles, time step Δt and body, linearly move all
--- particles for Δt, then possibly calculate new particle velocities
--- and positions wrt body structure.
+-- Given a list of particles, time step and body, linearly move all
+-- particles for, then possibly calculate new particle velocities and
+-- positions wrt body structure.
 processParticles :: [Particle] -> Time -> Body -> [Particle]
 processParticles particles dt body =
     clipBody body (map ((hit dt body) . (move dt)) particles)

@@ -39,41 +39,63 @@ import DSMC.Util
 import DSMC.Util.Vector
 
 
--- | HitSegment of a linearly-moving particle on a body is (one of)
--- the time interval during which particle is considered to be inside
--- the body.
+-- | Trace of a linearly-moving particle on a primitive is the time
+-- interval during which particle is considered to be inside the
+-- primitive.
 --
--- >                       * ← particle
+-- >                       * - particle
 -- >                        \
 -- >                         \
 -- >                          o------------
 -- >                      ---/ =           \---
 -- >                    -/      =              \-
 -- >                   /         =               \
--- >                  (           =  ← HitSegment )
+-- >                  (           =  - trace      )
 -- >                   \           =             /
 -- >                    -\          =          /-
--- >  traceable body →  ---\         =     /---
+-- >       primitive -  ---\         =     /---
 -- >                          --------o----
 -- >                                   \
 -- >                                    \
 -- >                                    _\/
 -- >                                      \
 --
+-- We consider only primitives defined by quadratic or linear
+-- surfaces. Thus trace may contain a single segment, or a single
+-- half-interval, or two half-intervals. Ends of segments or intervals
+-- are calculated by intersecting the trajectory ray of a particle and
+-- the surface of the primitive. This may be done by substituting the
+-- equation of trajectory @X(t) = X_o + V*t@ into the equation which
+-- defines the surface and solving it for @t@.
+--
+-- For example, since a ray intersects a plane only once, a halfspace
+-- primitive defined by this plane results in a half-interval trace of
+-- a particle:
+--
+-- >                                          /
+-- >                                         /
+-- >                                        /
+-- >              *------------------------o=================>
+-- >              |                       /                  |
+-- >           particle                  /            goes to infinity
+-- >                                    /
+-- >                                   /
+-- >                                  /
+-- >                                 / - surface of halfspace
+--
 -- Normal vectors are calculated for hit points which are not in
 -- infinity.
 type HitSegment = ((Double, Maybe Vector), (Double, Maybe Vector))
-
 
 -- | Particle may enter and leave body several times (in case of
 -- higher-than-2 order surfaces or complex bodies), thus its full
 -- trace may include several 'HitSegment's.
 type Trace = [HitSegment]
 
-
 -- | Infinity definition for 'RealFloat'.
 infinityP :: Double
 infinityP = 1 / 0
+
 
 -- | Negative infinity.
 infinityN :: Double
@@ -108,7 +130,7 @@ intersectTraces tr1 tr2 =
       overlap (a1, b1) (a2, b2) =
           collapsePoint (max a1 a2, min b1 b2)
           where
-            collapsePoint (f@(x, u), s@(y, v)) = 
+            collapsePoint (f@(x, u), s@(y, v)) =
                 if x == y
                 then ((x, max u v), (y, max u v))
                 else (f, s)
@@ -120,7 +142,7 @@ intersectTraces tr1 tr2 =
       intersect' [] _ = []
 
 
--- | Complement to trace (normals flipped) in R³.
+-- | Complement to trace (normals flipped) in @R^3@.
 complementTraces :: Bool -> Trace -> Trace
 complementTraces doFlip (x:xs) =
     start ++ (complementTraces' (snd x) xs)
@@ -232,14 +254,15 @@ cylinder n c r =
             (norm rn) < r
 
 
+-- | Cone given by axis direction, vertex and angle
 cone :: Vector
      -- ^ Cone axis direction (from vertex to inside)
-     -> Point 
+     -> Point
      -- ^ Cone vertex
      -> Double
      -- ^ Angle between axis and outer edge, in radians.
      -> Body
-cone n c a = 
+cone n c a =
     intersection [plane (reverse n) (-(norm c)), Body thisTrace thisInside]
     where
       nn = normalize n
@@ -291,7 +314,7 @@ intersection bodies =
             foldl' intersectTraces t ts
       thisInside p = or (map (flip inside p) bodies)
 
--- | Complement to body in universe R³ (normals flipped).
+-- | Complement to body in universe @R^3@ (normals flipped).
 complement :: Body -> Body
 complement body =
     Body thisTrace thisInside
