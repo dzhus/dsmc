@@ -18,6 +18,7 @@ module DSMC.Util.Vector
     , normalize
     , distance
     , reverse
+    , moveBy
     -- * Matrix operations
     , mxv
     , vxv
@@ -124,6 +125,19 @@ norm (Vector x y z) = sqrt (x * x + y * y + z * z)
 normalize :: Vector -> Vector
 normalize v = v .^ (1 / norm v)
 {-# INLINE normalize #-}
+
+
+-- | Move point by velocity vector for given time and return new
+-- position.
+moveBy :: Point
+       -- ^ Current position.
+       -> Vector
+       -- ^ Velocity.
+       -> Double 
+       -- ^ Time step.
+       -> Point
+moveBy p v t = p <+> (v .^ t)
+{-# INLINE moveBy #-}
 
 
 -- | Scale vector by -1.
