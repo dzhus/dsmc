@@ -100,7 +100,7 @@ intersectTraces tr1 tr2 =
           case tr2 of
             Nothing -> Nothing
             Just (u, v) ->
-                case y > u of
+                case (y > u && x < v) of
                   True -> Just $! (max x u, min y v)
                   False -> Nothing
 {-# INLINE intersectTraces #-}
@@ -111,6 +111,8 @@ intersectTraces tr1 tr2 =
 -- converted to sum-of-products form.
 data Body = Plane !Vector !Double
           -- ^ Half-space defined by plane with outward normal.
+          | Sphere !Vector !Double
+          -- ^ Sphere defined by center point and radius.
           | Union !Body !Body
           -- ^ Union of bodies.
           | Intersection !Body !Body
@@ -126,6 +128,7 @@ trace (Plane n d) (Particle pos v) =
         nn = normalize n
         f = -(n .* v)
     in
+      -- Check if ray is parallel to plane
       if f == 0
       then Nothing
       else
@@ -136,25 +139,22 @@ trace (Plane n d) (Particle pos v) =
             then Just $! (HitPoint t (Just nn), HitPoint infinityP Nothing)
             else Just $! (HitPoint infinityN Nothing, HitPoint t (Just nn))
 
+trace (Sphere c r) (Particle pos v) =
+      let
+          d = pos <-> c
+          roots = solveq (v .* v) (v .* d * 2) (d .* d - r * r)
+          normal u = normalize (u <-> c)
+      in
+        case roots of
+          Nothing -> Nothing
+          Just (t1, t2) -> Just $! (HitPoint t1 (Just $ normal $ moveBy pos v t1),
+                                    HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
 trace (Intersection b1 b2) p =
     intersectTraces tr1 tr2
         where
           tr1 = trace b1 p
           tr2 = trace b2 p
-
-
-trace (Union b1 b2) p =
-    let
-        tr1 = trace b1 p
-        tr2 = trace b2 p
-    in
-      case tr1 of
-        Nothing -> tr2
-        Just (x, y) ->
-            case tr2 of
-              Nothing -> tr1
-              Just (u, v) -> Just $! (min x u, max y v)
 
 
 -- | Get first hit point of particle on a body surface.
