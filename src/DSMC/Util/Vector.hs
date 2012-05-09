@@ -1,6 +1,6 @@
 {-| 
 
-Naive vector implementation. 
+Simple vectors and matrices.
 
 -}
 
@@ -37,9 +37,11 @@ import Prelude hiding (reverse)
 data Vector = Vector !Double !Double !Double
               deriving (Eq, Ord, Show)
 
+
 -- | Matrix given by its rows.
 data Matrix = Matrix !Vector !Vector !Vector
               deriving (Eq, Ord, Show)
+
 
 -- | Point in @R^3@.
 type Point = Vector

@@ -6,15 +6,13 @@
 module DSMC.Traceables
     ( -- * Traces
       Trace
+    , HitPoint(..)
     -- * Primitive trace operations
+    , intersectTraces
     , trace
---    , uniteTraces
---    , intersectTraces
+    , hitPoint
     -- * Traceable bodies
     , Body(..)
-    -- * Infinity definitions
-    , infinityP
-    , infinityN
     )
 
 where
@@ -22,8 +20,6 @@ where
 import Prelude hiding (reverse)
 
 import Data.Functor
-import Data.List (foldl')
-
 import DSMC.Particles
 import DSMC.Types
 import DSMC.Util
@@ -74,12 +70,18 @@ import DSMC.Util.Vector
 -- >                                  /
 -- >                                 / - surface of halfspace
 --
--- Normal vectors are calculated for hit points which are not in
--- infinity.
-type Trace = Maybe ((Double, Maybe Vector), (Double, Maybe Vector))
+-- TODO: Make this strict on fields, but find out how to deal with
+-- Maybe.
+type Trace = Maybe (HitPoint, HitPoint)
 
 
--- | Infinity definition for 'RealFloat'.
+-- | Time when particle hits the surface, along with normal at hit
+-- point. If hit is in infinity, then normal is Nothing.
+data HitPoint = HitPoint !Double !(Maybe Vector)
+                deriving (Eq, Ord, Show)
+
+
+-- | IEEE positive infinity.
 infinityP :: Double
 infinityP = 1 / 0
 
@@ -89,18 +91,35 @@ infinityN :: Double
 infinityN = -infinityP
 
 
+-- | Intersect two traces.
+intersectTraces :: Trace -> Trace -> Trace
+intersectTraces tr1 tr2 =
+    case tr1 of
+      Nothing -> Nothing
+      Just (x, y) ->
+          case tr2 of
+            Nothing -> Nothing
+            Just (u, v) ->
+                case y > u of
+                  True -> Just $! (max x u, min y v)
+                  False -> Nothing
+{-# INLINE intersectTraces #-}
+
+
+-- | CSG body is a recursive composition of primitive objects or other
+-- bodies. We require that prior to tracing particles on a body it's
+-- converted to sum-of-products form.
 data Body = Plane !Vector !Double
           -- ^ Half-space defined by plane with outward normal.
-          | Union ![Body]
+          | Union !Body !Body
           -- ^ Union of bodies.
-          | Intersection ![Body]
+          | Intersection !Body !Body
           -- ^ Intersection of bodies.
             deriving Show
 
 
+-- | Trace a particle on a body.
 trace :: Body -> Particle -> Trace
-inside :: Body -> Particle -> Bool
-
 
 trace (Plane n d) (Particle pos v) =
     let
@@ -114,13 +133,30 @@ trace (Plane n d) (Particle pos v) =
               t = (pos .* n + d) / f
           in
             if f > 0
-            then Just ((t, Just nn), (infinityP, Nothing))
-            else Just ((infinityN, Nothing), (t, Just nn))
+            then Just $! (HitPoint t (Just nn), HitPoint infinityP Nothing)
+            else Just $! (HitPoint infinityN Nothing, HitPoint t (Just nn))
 
 
+trace (Intersection b1 b2) p =
+    intersectTraces tr1 tr2
+        where
+          tr1 = trace b1 p
+          tr2 = trace b2 p
 
-inside (Plane n d) (Particle pos _) = (pos .* n + d) < 0
 
-inside (Union bs) p = or $ map (flip inside p) bs
+trace (Union b1 b2) p =
+    let
+        tr1 = trace b1 p
+        tr2 = trace b2 p
+    in
+      case tr1 of
+        Nothing -> tr2
+        Just (x, y) ->
+            case tr2 of
+              Nothing -> tr1
+              Just (u, v) -> Just $! (min x u, max y v)
 
-inside (Intersection bs) p = and $ map (flip inside p) bs
+
+-- | Get first hit point of particle on a body surface.
+hitPoint :: Body -> Particle -> Maybe HitPoint
+hitPoint b p = fst <$> trace b p
