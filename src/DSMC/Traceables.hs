@@ -1,5 +1,3 @@
-{-# LANGUAGE ExistentialQuantification #-}
-
 -- | Body compositions for which particle trajectory intersections
 -- can be calculated.
 
@@ -84,7 +82,7 @@ data HitPoint = HitPoint !Double (Maybe Vector)
 
 -- | IEEE positive infinity.
 infinityP :: Double
-infinityP = 1 / 0
+infinityP = (/) 1 $! 0
 
 
 -- | Negative infinity.
@@ -114,6 +112,9 @@ data Body = Plane !Vector !Double
           -- ^ Half-space defined by plane with outward normal.
           | Sphere !Vector !Double
           -- ^ Sphere defined by center point and radius.
+          | Cylinder !Vector !Point !Double
+          -- ^ Infinite cylinder defined by vector collinear to axis, point on
+          -- axis and radius.
           | Union !Body !Body
           -- ^ Union of bodies.
           | Intersection !Body !Body
@@ -157,6 +158,22 @@ trace (Intersection b1 b2) p =
         where
           tr1 = trace b1 p
           tr2 = trace b2 p
+
+trace (Cylinder n c r) (Particle pos v) =
+    let
+        r2 = r * r
+        nn = normalize n
+        d = (pos <-> c) >< n
+        e = v >< n
+        roots = solveq (e .* e) (d .* e * 2) (d .* d - r2)
+        normal u = normalize $ h <-> (nn .^ (h .* nn))
+            where h = u <-> c
+    in
+      case roots of
+        Nothing -> Nothing
+        Just (t1 :!: t2) -> Just $ 
+                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
+                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
 
 -- | Get first hit point of particle on a body surface.
