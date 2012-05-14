@@ -115,6 +115,9 @@ data Body = Plane !Vector !Double
           | Cylinder !Vector !Point !Double
           -- ^ Infinite cylinder defined by vector collinear to axis, point on
           -- axis and radius.
+          | Cone !Vector !Point !Double
+          -- | Cone given by axis direction, vertex and angle between
+          -- axis and outer edge (in radians).
           | Union !Body !Body
           -- ^ Union of bodies.
           | Intersection !Body !Body
@@ -153,7 +156,6 @@ trace (Sphere c r) (Particle pos v) =
                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
-
 trace (Cylinder n c r) (Particle pos v) =
     let
         r2 = r * r
@@ -170,12 +172,43 @@ trace (Cylinder n c r) (Particle pos v) =
                             (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                              HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
+trace (Cone n c a) (Particle pos v) =
+    let
+      nn = normalize n
+      a' = cos $! a
+      gamma = diag (-a' * a')
+      delta = pos <-> c
+      m = addM (nn `vxv` nn) gamma
+      c2 = dotM v     v     m
+      c1 = dotM v     delta m
+      c0 = dotM delta delta m
+      roots = solveq c2 (2 * c1) c0
+      normal u = normalize $ nx .^ (1 / ta)  <-> ny .^ ta
+          where h = u <-> c
+                -- Component of h parallel to cone axis
+                ny' = nn .^ (nn .* h)
+                ny = normalize ny'
+                -- Perpendicular component
+                nx = normalize $ h <-> ny'
+                ta = tan $! a
+    in
+      case roots of
+        Nothing -> Nothing
+        Just (t1 :!: t2) -> if (v .* nn) / (norm v) < a' then
+                                Just $ 
+                                (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
+                                 HitPoint t2 (Just $ normal $ moveBy pos v t2))
+                            else
+                                Just $ 
+                                (HitPoint t2 (Just $ normal $ moveBy pos v t2) :!:
+                                 HitPoint infinityP Nothing)
 
 trace (Intersection b1 b2) p =
     intersectTraces tr1 tr2
         where
           tr1 = trace b1 p
           tr2 = trace b2 p
+
 trace (Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
 
 
@@ -187,3 +220,4 @@ futureTrace = Just $ (HitPoint 0 Nothing) :!: (HitPoint infinityP Nothing)
 -- on a body surface in future.
 hitPoint :: Body -> Particle -> Maybe HitPoint
 hitPoint b p = fst <$> (intersectTraces futureTrace $ trace b p)
+
