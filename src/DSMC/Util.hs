@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 -- | Utility functions.
 
 module DSMC.Util
@@ -24,7 +26,7 @@ solveq :: Double
        -> Double
        -- ^ c
        -> SquareRoots
-solveq a b c
+solveq !a !b !c
     | (d >  0) = Just $ min r1 r2 :!: max r1 r2
     | (d <= 0) = Nothing
     where

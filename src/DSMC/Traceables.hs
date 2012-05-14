@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 -- | Body compositions for which particle trajectory intersections
 -- can be calculated.
 
@@ -92,7 +94,7 @@ infinityN = -infinityP
 
 -- | Intersect two traces.
 intersectTraces :: Trace -> Trace -> Trace
-intersectTraces tr1 tr2 =
+intersectTraces !tr1 !tr2 =
     case tr1 of
       Nothing -> Nothing
       Just (x :!: y) ->
@@ -128,7 +130,7 @@ data Body = Plane !Vector !Double
 -- | Trace a particle on a body.
 trace :: Body -> Particle -> Trace
 
-trace (Plane n d) (Particle pos v) =
+trace !(Plane n d) !(Particle pos v) =
     let
         nn = normalize n
         f = -(n .* v)
@@ -144,7 +146,7 @@ trace (Plane n d) (Particle pos v) =
             then Just ((HitPoint t (Just nn)) :!: (HitPoint infinityP Nothing))
             else Just ((HitPoint infinityN Nothing) :!: (HitPoint t (Just nn)))
 
-trace (Sphere c r) (Particle pos v) =
+trace !(Sphere c r) !(Particle pos v) =
       let
           d = pos <-> c
           roots = solveq (v .* v) (v .* d * 2) (d .* d - r * r)
@@ -156,7 +158,7 @@ trace (Sphere c r) (Particle pos v) =
                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
-trace (Cylinder n c r) (Particle pos v) =
+trace !(Cylinder n c r) !(Particle pos v) =
     let
         r2 = r * r
         nn = normalize n
@@ -172,7 +174,7 @@ trace (Cylinder n c r) (Particle pos v) =
                             (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                              HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
-trace (Cone n c a) (Particle pos v) =
+trace !(Cone n c a) !(Particle pos v) =
     let
       nn = normalize n
       a' = cos $! a
@@ -203,13 +205,13 @@ trace (Cone n c a) (Particle pos v) =
                                 (HitPoint t2 (Just $ normal $ moveBy pos v t2) :!:
                                  HitPoint infinityP Nothing)
 
-trace (Intersection b1 b2) p =
+trace !(Intersection b1 b2) !p =
     intersectTraces tr1 tr2
         where
           tr1 = trace b1 p
           tr2 = trace b2 p
 
-trace (Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
+trace !(Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
 
 
 futureTrace :: Trace
@@ -219,5 +221,5 @@ futureTrace = Just $ (HitPoint 0 Nothing) :!: (HitPoint infinityP Nothing)
 -- | Assuming particle is outside of body, get its first hit point of
 -- on a body surface in future.
 hitPoint :: Body -> Particle -> Maybe HitPoint
-hitPoint b p = fst <$> (intersectTraces futureTrace $ trace b p)
+hitPoint !b !p = fst <$> (intersectTraces futureTrace $ trace b p)
 
