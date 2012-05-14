@@ -153,11 +153,6 @@ trace (Sphere c r) (Particle pos v) =
                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
-trace (Intersection b1 b2) p =
-    intersectTraces tr1 tr2
-        where
-          tr1 = trace b1 p
-          tr2 = trace b2 p
 
 trace (Cylinder n c r) (Particle pos v) =
     let
@@ -176,6 +171,19 @@ trace (Cylinder n c r) (Particle pos v) =
                              HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
 
--- | Get first hit point of particle on a body surface.
+trace (Intersection b1 b2) p =
+    intersectTraces tr1 tr2
+        where
+          tr1 = trace b1 p
+          tr2 = trace b2 p
+trace (Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
+
+
+futureTrace :: Trace
+futureTrace = Just $ (HitPoint 0 Nothing) :!: (HitPoint infinityP Nothing)
+
+
+-- | Assuming particle is outside of body, get its first hit point of
+-- on a body surface in future.
 hitPoint :: Body -> Particle -> Maybe HitPoint
-hitPoint b p = fst <$> trace b p
+hitPoint b p = fst <$> (intersectTraces futureTrace $ trace b p)
