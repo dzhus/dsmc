@@ -109,7 +109,7 @@ diag !d = Matrix (Vector d 0 0) (Vector 0 d 0) (Vector 0 0 d)
 -- | Transpose vector and multiply it by another vector, producing a
 -- matrix.
 vxv :: Vector -> Vector -> Matrix
-vxv !v1@(Vector v11 v12 v13) !v2 = Matrix (v2 .^ v11) (v2 .^ v12) (v2 .^ v13)
+vxv !(Vector v11 v12 v13) !v2 = Matrix (v2 .^ v11) (v2 .^ v12) (v2 .^ v13)
 {-# INLINE vxv #-}
 
 
