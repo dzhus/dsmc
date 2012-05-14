@@ -7,7 +7,12 @@ module DSMC.Util
 
 where
 
-type SquareRoots = Maybe (Double, Double)
+import Prelude hiding (Just, Nothing, Maybe, fst)
+
+import Data.Strict.Maybe
+import Data.Strict.Tuple
+
+type SquareRoots = Maybe (Pair Double Double)
 
 -- | Solve quadratic equation @ax^2 + bx + c = 0@.
 --
@@ -20,7 +25,7 @@ solveq :: Double
        -- ^ c
        -> SquareRoots
 solveq a b c
-    | (d >  0) = Just $! (min r1 r2, max r1 r2)
+    | (d >  0) = Just $ min r1 r2 :!: max r1 r2
     | (d <= 0) = Nothing
     where
       d  =   b * b - 4 * a * c

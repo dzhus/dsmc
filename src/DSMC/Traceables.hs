@@ -17,13 +17,17 @@ module DSMC.Traceables
 
 where
 
-import Prelude hiding (reverse)
+import Prelude hiding (Just, Nothing, Maybe, fst, reverse)
 
 import Data.Functor
+import Data.Strict.Maybe
+import Data.Strict.Tuple
+
 import DSMC.Particles
 import DSMC.Types
 import DSMC.Util
 import DSMC.Util.Vector
+
 
 
 -- | Trace of a linearly-moving particle on a primitive is the time
@@ -69,15 +73,12 @@ import DSMC.Util.Vector
 -- >                                   /
 -- >                                  /
 -- >                                 / - surface of halfspace
---
--- TODO: Make this strict on fields, but find out how to deal with
--- Maybe.
-type Trace = Maybe (HitPoint, HitPoint)
+type Trace = Maybe (Pair HitPoint HitPoint)
 
 
 -- | Time when particle hits the surface, along with normal at hit
 -- point. If hit is in infinity, then normal is Nothing.
-data HitPoint = HitPoint !Double !(Maybe Vector)
+data HitPoint = HitPoint !Double (Maybe Vector)
                 deriving (Eq, Ord, Show)
 
 
@@ -96,12 +97,12 @@ intersectTraces :: Trace -> Trace -> Trace
 intersectTraces tr1 tr2 =
     case tr1 of
       Nothing -> Nothing
-      Just (x, y) ->
+      Just (x :!: y) ->
           case tr2 of
             Nothing -> Nothing
-            Just (u, v) ->
+            Just (u :!: v) ->
                 case (y > u && x < v) of
-                  True -> Just $! (max x u, min y v)
+                  True -> Just $ max x u :!: min y v
                   False -> Nothing
 {-# INLINE intersectTraces #-}
 
@@ -136,8 +137,8 @@ trace (Plane n d) (Particle pos v) =
               t = (pos .* n + d) / f
           in
             if f > 0
-            then Just $! (HitPoint t (Just nn), HitPoint infinityP Nothing)
-            else Just $! (HitPoint infinityN Nothing, HitPoint t (Just nn))
+            then Just ((HitPoint t (Just nn)) :!: (HitPoint infinityP Nothing))
+            else Just ((HitPoint infinityN Nothing) :!: (HitPoint t (Just nn)))
 
 trace (Sphere c r) (Particle pos v) =
       let
@@ -147,8 +148,9 @@ trace (Sphere c r) (Particle pos v) =
       in
         case roots of
           Nothing -> Nothing
-          Just (t1, t2) -> Just $! (HitPoint t1 (Just $ normal $ moveBy pos v t1),
-                                    HitPoint t2 (Just $ normal $ moveBy pos v t2))
+          Just (t1 :!: t2) -> Just $ 
+                           (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
+                            HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
 trace (Intersection b1 b2) p =
     intersectTraces tr1 tr2
