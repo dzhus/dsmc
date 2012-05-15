@@ -154,7 +154,7 @@ trace !(Sphere c r) !(Particle pos v) =
       in
         case roots of
           Nothing -> Nothing
-          Just (t1 :!: t2) -> Just $ 
+          Just (t1 :!: t2) -> Just $
                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
@@ -170,7 +170,7 @@ trace !(Cylinder n c r) !(Particle pos v) =
     in
       case roots of
         Nothing -> Nothing
-        Just (t1 :!: t2) -> Just $ 
+        Just (t1 :!: t2) -> Just $
                             (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                              HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
@@ -197,11 +197,11 @@ trace !(Cone n c a) !(Particle pos v) =
       case roots of
         Nothing -> Nothing
         Just (t1 :!: t2) -> if (v .* nn) / (norm v) < a' then
-                                Just $ 
+                                Just $
                                 (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                                  HitPoint t2 (Just $ normal $ moveBy pos v t2))
                             else
-                                Just $ 
+                                Just $
                                 (HitPoint t2 (Just $ normal $ moveBy pos v t2) :!:
                                  HitPoint infinityP Nothing)
 
@@ -222,4 +222,3 @@ futureTrace = Just $ (HitPoint 0 Nothing) :!: (HitPoint infinityP Nothing)
 -- on a body surface in future.
 hitPoint :: Body -> Particle -> Maybe HitPoint
 hitPoint !b !p = fst <$> (intersectTraces futureTrace $ trace b p)
-
