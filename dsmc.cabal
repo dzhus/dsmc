@@ -16,6 +16,7 @@ library
   hs-source-dirs: src
 
   exposed-modules:
+    DSMC,
     DSMC.Traceables,
     DSMC.Types,
     DSMC.Macroscopic,
@@ -30,4 +31,5 @@ library
     attoparsec  == 0.10.*,
     base        == 4.*,
     bytestring  == 0.9.*,
-    strict      == 0.3.*
+    strict      == 0.3.*,
+    vector      == 0.9.*
