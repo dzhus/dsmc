@@ -20,7 +20,7 @@ data Cell = Cell Point [Particle]
 
 
 -- | Macroscopic velocity.
-data Velocity = Velocity Point Vector
+data Velocity = Velocity Point Vec3
 
 
 -- | Sort particles in domain to a list of spherical cells with given
@@ -37,7 +37,7 @@ sphericalCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
         cx = xmin + x * radius
         cy = ymin + y * radius
         cz = zmin + z * radius
-        c = (Vector cx cy cz)
+        c = Vec3 cx cy cz
      in
        (Cell c (filter (\p -> (distance (position p) c) < radius) particles))
            | x <- [0 .. (xmax - xmin) / radius],
@@ -52,9 +52,9 @@ sampleVelocity (Cell point particles) =
 
 
 -- | Calculate average velocity for a list of particles.
-averageVelocity :: [Particle] -> Vector
+averageVelocity :: [Particle] -> Vec3
 averageVelocity particles =
     let
         weight = 1 / fromIntegral (length particles)
     in
-    (foldl' (<+>) (Vector 0 0 0) (map velocity particles)) .^ weight
+    (foldl' (<+>) (Vec3 0 0 0) (map velocity particles)) .^ weight

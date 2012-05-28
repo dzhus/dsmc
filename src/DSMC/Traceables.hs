@@ -78,7 +78,7 @@ type Trace = Maybe (Pair HitPoint HitPoint)
 
 -- | Time when particle hits the surface, along with normal at hit
 -- point. If hit is in infinity, then normal is Nothing.
-data HitPoint = HitPoint !Double (Maybe Vector)
+data HitPoint = HitPoint !Double (Maybe Vec3)
                 deriving (Eq, Ord, Show)
 
 
@@ -110,14 +110,14 @@ intersectTraces !tr1 !tr2 =
 -- | CSG body is a recursive composition of primitive objects or other
 -- bodies. We require that prior to tracing particles on a body it's
 -- converted to sum-of-products form.
-data Body = Plane !Vector !Double
+data Body = Plane !Vec3 !Double
           -- ^ Half-space defined by plane with outward normal.
-          | Sphere !Vector !Double
+          | Sphere !Vec3 !Double
           -- ^ Sphere defined by center point and radius.
-          | Cylinder !Vector !Point !Double
+          | Cylinder !Vec3 !Point !Double
           -- ^ Infinite cylinder defined by vector collinear to axis, point on
           -- axis and radius.
-          | Cone !Vector !Point !Double
+          | Cone !Vec3 !Point !Double
           -- | Cone given by axis direction, vertex and angle between
           -- axis and outer edge (in radians).
           | Union !Body !Body
