@@ -26,7 +26,7 @@ data Velocity = Velocity Point Vec3
 -- | Sort particles in domain to a list of spherical cells with given
 -- radius. Cells are centered at nodes regular grid with spatial step
 -- (in each direction) equal to radius.
-sphericalCells :: Domain 
+sphericalCells :: Volume 
               -> [Particle] 
               -- ^ All particles in domain.
               -> Double

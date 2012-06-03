@@ -10,7 +10,7 @@ DSMC definitions.
 module DSMC.Types
     ( Time
     , Particle(..)
-    , Domain(..)
+    , Volume(..)
     )
 
 where
@@ -78,6 +78,7 @@ instance VG.Vector VU.Vector Particle where
 instance VU.Unbox Particle
 
 
--- | Domain in which particle system evolution is simulated.
-data Domain = Box Double Double Double Double Double Double
+-- | Volume in which particles are spawned or system evolution is
+-- simulated.
+data Volume = Box Double Double Double Double Double Double
               deriving Show

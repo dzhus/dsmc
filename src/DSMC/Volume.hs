@@ -24,4 +24,4 @@ inVolume (Box xmin xmax ymin ymax zmin zmax) (Particle (Vec3 x y z) _) =
 
 -- | Filter out particles which are not in domain.
 clipVolume :: Volume -> [Particle] -> [Particle]
-clipVolume vol particles = filter (inVolume vo) particles
+clipVolume vol particles = filter (inVolume vol) particles

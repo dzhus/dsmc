@@ -16,20 +16,23 @@ library
   hs-source-dirs: src
 
   exposed-modules:
-    DSMC,
+--    DSMC,
     DSMC.Traceables,
     DSMC.Types,
     DSMC.Macroscopic,
     DSMC.Util.Vector
 
   other-modules:
-    DSMC.Domain,
+    DSMC.Distributions,
     DSMC.Particles,
-    DSMC.Util
+    DSMC.Util,
+    DSMC.Volume
 
   build-depends:
     attoparsec  == 0.10.*,
     base        == 4.*,
     bytestring  == 0.9.*,
+    mwc-random  == 0.12.*,
+    primitive   == 0.4.*,
     strict      == 0.3.*,
     vector      == 0.9.*
