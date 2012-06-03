@@ -23,6 +23,7 @@ library
     DSMC.Util.Vector
 
   other-modules:
+    DSMC.Constants,
     DSMC.Distributions,
     DSMC.Particles,
     DSMC.Util,
