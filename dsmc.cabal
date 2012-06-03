@@ -19,15 +19,15 @@ library
 --    DSMC,
     DSMC.Traceables,
     DSMC.Types,
-    DSMC.Macroscopic,
+--    DSMC.Macroscopic,
+    DSMC.Particles,
     DSMC.Util.Vector
 
   other-modules:
     DSMC.Constants,
+    DSMC.Domain
     DSMC.Distributions,
-    DSMC.Particles,
-    DSMC.Util,
-    DSMC.Volume
+    DSMC.Util
 
   build-depends:
     attoparsec  == 0.10.*,
@@ -35,5 +35,6 @@ library
     bytestring  == 0.9.*,
     mwc-random  == 0.12.*,
     primitive   == 0.4.*,
+    repa        == 3.1.*,
     strict      == 0.3.*,
     vector      == 0.9.*

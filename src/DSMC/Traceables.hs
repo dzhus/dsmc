@@ -130,7 +130,7 @@ data Body = Plane !Vec3 !Double
 -- | Trace a particle on a body.
 trace :: Body -> Particle -> Trace
 
-trace !(Plane n d) !(Particle pos v) =
+trace !(Plane n d) !(pos, v) =
     let
         nn = normalize n
         f = -(n .* v)
@@ -146,7 +146,7 @@ trace !(Plane n d) !(Particle pos v) =
             then Just ((HitPoint t (Just nn)) :!: (HitPoint infinityP Nothing))
             else Just ((HitPoint infinityN Nothing) :!: (HitPoint t (Just nn)))
 
-trace !(Sphere c r) !(Particle pos v) =
+trace !(Sphere c r) !(pos, v) =
       let
           d = pos <-> c
           roots = solveq (v .* v) (v .* d * 2) (d .* d - r * r)
@@ -158,7 +158,7 @@ trace !(Sphere c r) !(Particle pos v) =
                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
-trace !(Cylinder n c r) !(Particle pos v) =
+trace !(Cylinder n c r) !(pos, v) =
     let
         r2 = r * r
         nn = normalize n
@@ -174,7 +174,7 @@ trace !(Cylinder n c r) !(Particle pos v) =
                             (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                              HitPoint t2 (Just $ normal $ moveBy pos v t2))
 
-trace !(Cone n c a) !(Particle pos v) =
+trace !(Cone n c a) !(pos, v) =
     let
       nn = normalize n
       a' = cos $! a
