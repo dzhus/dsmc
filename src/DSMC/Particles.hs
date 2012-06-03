@@ -8,16 +8,14 @@ Particle operations.
 -}
 
 module DSMC.Particles
-    ( Particle(..)
+    ( Particle
+    , Ensemble
     , move
     )
 
 where
 
-import qualified Data.Vector.Generic as VG
-import qualified Data.Vector.Generic.Mutable as VGM
 import qualified Data.Vector.Unboxed as VU
-import DSMC.Util.Vector
 
 import DSMC.Types
 import DSMC.Util.Vector
@@ -30,3 +28,7 @@ type Particle = (Point, Vec3)
 -- | Linearly move particle for t time and update its position.
 move :: Time -> Particle -> Particle
 move dt p@(pos, v) = (pos <+> (v .^ dt), v)
+
+
+-- | Array of particles.
+type Ensemble = VU.Vector Particle

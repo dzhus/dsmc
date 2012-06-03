@@ -15,8 +15,7 @@ where
 
 import Control.Monad.Primitive (PrimMonad, PrimState)
 
-import Data.Array.Repa
-import qualified Data.Vector.Unboxed as U
+import qualified Data.Vector.Unboxed as VU
 
 import System.Random.MWC
 import System.Random.MWC.Distributions (normal)
@@ -61,13 +60,13 @@ spawnParticles :: PrimMonad m =>
                -- ^ Molecular mass.
                -> Vec3
                -- ^ Flow velocity.
-               -> m (U.Vector Particle)
+               -> m Ensemble
 spawnParticles !g !d@(Box xmin xmax ymin ymax zmin zmax) !n !t !m !(u0, v0, w0) =
     let
         !s = sqrt $ boltzmann * t / m
         !count = round $ n * (volume d)
     in do
-      U.replicateM count $ do
+      VU.replicateM count $ do
          u <- normal u0 s g
          v <- normal v0 s g
          w <- normal w0 s g
