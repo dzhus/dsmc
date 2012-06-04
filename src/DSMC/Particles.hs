@@ -10,9 +10,9 @@ Particle operations.
 module DSMC.Particles
     ( Particle
     , Ensemble
-    , ParEnsemble
     , move
     , printEnsemble
+    , fromUnboxed1
     )
 
 where
@@ -34,12 +34,22 @@ move dt (pos, v) = (pos <+> (v .^ dt), v)
 {-# INLINE move #-}
 
 
--- | Array of particles.
-type Ensemble = VU.Vector Particle
+data Flow = Flow { concentration :: !Double
+                 , temperature :: !Double
+                 , mass :: !Double
+                 , flow :: !Vec3
+                 }
+            -- ^ Flow with given concentration, temperature, mass of
+            -- molecule and macroscopic velocity.
 
 
 -- | Repa array of particles.
-type ParEnsemble = R.Array R.U R.DIM1 Particle
+type Ensemble = R.Array R.U R.DIM1 Particle
+
+
+-- | Convert between Repa DIM1-arrays and unboxed vectors.
+fromUnboxed1 :: VU.Vector Particle -> Ensemble
+fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 
 
 -- | Print particles, one per row, using the format:
@@ -47,5 +57,5 @@ type ParEnsemble = R.Array R.U R.DIM1 Particle
 -- > x y z v u w
 printEnsemble :: Ensemble -> IO ()
 printEnsemble particles = do
-  VU.forM_ particles
+  VU.forM_ (R.toUnboxed particles)
         (\((x, y, z), (u, v, w)) -> putStrLn $ unwords (map show [x, y, z, u, v, w]))

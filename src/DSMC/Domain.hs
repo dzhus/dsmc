@@ -26,7 +26,6 @@ import System.Random.MWC.Distributions (normal)
 
 import DSMC.Constants
 import DSMC.Particles
-import DSMC.Types
 import DSMC.Util.Vector
 
 
@@ -98,7 +97,7 @@ spawnParticles :: PrimMonad m =>
                -- ^ Mass of molecule.
                -> Vec3
                -- ^ Flow velocity.
-               -> m Ensemble
+               -> m (VU.Vector Particle)
 spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !n !t !m !(u0, v0, w0) =
     let
         !s = sqrt $ boltzmann * t / m
@@ -166,7 +165,8 @@ openBoundaryInjection !g !domain !ex !n !t !m !flow =
       v4 <- spawnParticles g d4 n t m flow
       v5 <- spawnParticles g d5 n t m flow
       v6 <- spawnParticles g d6 n t m flow
-      return $ VU.concat [v1, v2, v3, v4, v5, v6]
+      let v = VU.concat [v1, v2, v3, v4, v5, v6]
+      return $ fromUnboxed1 v
 
 
 -- | Filter out particles which are outside of the domain.
@@ -176,12 +176,10 @@ openBoundaryInjection !g !domain !ex !n !t !m !flow =
 clipToDomain :: Monad m => Domain -> Ensemble -> m Ensemble
 clipToDomain !(Domain xmin xmax ymin ymax zmin zmax) ens = 
     let
-        arr :: ParEnsemble
-        arr = R.fromUnboxed (R.ix1 $ size) ens
-        size = VU.length ens
+        (R.Z R.:. size) = R.extent ens
         -- | Get i-th particle from ensemble
         getter :: Int -> Particle
-        getter i = (R.!) arr (R.ix1 i)
+        getter i = (R.!) ens (R.ix1 i)
         {-# INLINE getter #-}
         -- | Check if particle is in the domain.
         pred :: Int -> Bool
@@ -194,4 +192,4 @@ clipToDomain !(Domain xmin xmax ymin ymax zmin zmax) ens =
               zmax >= z && z >= zmin
         {-# INLINE pred #-}
     in do
-      return $ R.toUnboxed $ R.selectP pred getter size arr
+      return $ R.selectP pred getter size ens
