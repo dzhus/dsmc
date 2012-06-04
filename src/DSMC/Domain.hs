@@ -159,15 +159,10 @@ openBoundaryInjection g domain ex flow ens =
         d4 = makeDomain (cx, cy - (l + ex) / 2, cz) w ex h
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
-        v = R.toUnboxed ens
+        v = [R.toUnboxed ens]
     in do
-      v1 <- spawnParticles g d1 flow
-      v2 <- spawnParticles g d2 flow
-      v3 <- spawnParticles g d3 flow
-      v4 <- spawnParticles g d4 flow
-      v5 <- spawnParticles g d5 flow
-      v6 <- spawnParticles g d6 flow
-      return $ fromUnboxed1 $ VU.concat [v, v1, v2, v3, v4, v5, v6]
+      new <- mapM (\d -> spawnParticles g d flow) [d1, d2, d3, d4, d5, d6]
+      return $ fromUnboxed1 $ VU.concat (new ++ v)
 
 
 -- | Filter out particles which are outside of the domain.
