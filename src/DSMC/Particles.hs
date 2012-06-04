@@ -8,12 +8,15 @@ Particle operations.
 -}
 
 module DSMC.Particles
-    ( Particle
+    ( -- * Particles
+      Particle
     , Ensemble
-    , Flow(..)
     , move
     , printEnsemble
     , fromUnboxed1
+    -- * Flows
+    , Flow(..)
+    , modelConcentration
     )
 
 where
