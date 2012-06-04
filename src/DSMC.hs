@@ -1,12 +1,14 @@
 {-|
-  
+
   Simulation procedures.
 
 -}
 module DSMC
-    ()
+    (advance)
 
 where
+
+import qualified Data.Array.Repa as R
 
 import DSMC.Particles
 import DSMC.Types
@@ -19,3 +21,12 @@ import DSMC.Util.Vector
 reflectSpecular :: Particle -> Vec3 -> Time -> Particle
 reflectSpecular (pos, v) n t =
     move (-1 * t) (pos, v <-> (n .^ (v .* n) .^ 2))
+
+
+-- | Advance particles in space without collisions.
+advance :: Monad m =>
+           Double
+        -- ^ Time step.
+        -> Ensemble
+        -> m Ensemble
+advance dt ens = R.computeP $ R.map (move dt) ens
