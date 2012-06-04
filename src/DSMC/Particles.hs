@@ -2,7 +2,7 @@
 
 {-|
 
-Particle operations.
+Particles, ensembles, flow parameters.
 
 -}
 
@@ -62,7 +62,7 @@ modelConcentration flow = (concentration flow) / (statWeight flow)
 type Ensemble = R.Array R.U R.DIM1 Particle
 
 
--- | Convert between Repa DIM1-arrays and unboxed vectors.
+-- | Convert between Repa 'R.DIM1'-arrays and unboxed 'VU.Vector's.
 fromUnboxed1 :: VU.Vector Particle -> Ensemble
 fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 
@@ -73,7 +73,10 @@ emptyEnsemble = fromUnboxed1 $ VU.empty
 
 -- | Print particles, one per row, using the format:
 --
--- > x y z v u w
+-- > x y z u v w
+--
+-- where @x y z@ are position coordinates and @u v w@ are velocity
+-- components.
 printEnsemble :: Ensemble -> IO ()
 printEnsemble particles = do
   VU.forM_ (R.toUnboxed particles)
