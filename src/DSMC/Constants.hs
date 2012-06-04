@@ -8,7 +8,8 @@ module DSMC.Constants
 where
 
 
--- | Atomic mass unit 1.660538921(73)e-27
+-- | Atomic mass unit 1.660538921(73)e-27, inverse to Avogadro's
+-- constant.
 amu :: Double
 amu = 1.6605389217373737e-27
 
