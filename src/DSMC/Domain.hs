@@ -7,8 +7,9 @@ Domain operations
 -}
 
 module DSMC.Domain
-    ( spawnParticles,
-      Domain(..)
+    ( Domain(..)
+    , makeBox
+    , spawnParticles
     )
 
 where
@@ -42,6 +43,29 @@ inDomain !(Box xmin xmax ymin ymax zmin zmax) !((x, y, z), _) =
     zmax >= z && z >= zmin
 
 
+-- | Create a rectangular domain with center in the given point and
+-- dimensions.
+makeBox :: Point 
+        -- ^ Center point.
+        -> Double
+        -- ^ X dimension.
+        -> Double
+        -- ^ Y dimension.
+        -> Double 
+        -- ^ Z dimension.
+        -> Domain
+makeBox !(x, y, z) !w !l !h =
+    let
+        xmin = x - w / 2
+        ymin = y - l / 2
+        zmin = z - h / 2
+        xmax = x + w / 2
+        ymax = y + l / 2
+        zmax = z + h / 2
+    in
+      Box xmin xmax ymin ymax zmin zmax
+
+
 -- | Measure volume of domain.
 volume :: Domain -> Double
 volume !(Box xmin xmax ymin ymax zmin zmax) =
@@ -53,7 +77,7 @@ spawnParticles :: PrimMonad m =>
                   Gen (PrimState m)
                -> Domain
                -> Double
-               -- ^ Concentration
+               -- ^ Concentration.
                -> Double
                -- ^ Thermodynamic temperature.
                -> Double
