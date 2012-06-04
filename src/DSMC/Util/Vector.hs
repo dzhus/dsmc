@@ -11,8 +11,8 @@ All functions and datatypes are strict.
 -}
 
 module DSMC.Util.Vector
-    ( Vec3(..)
-    , Matrix(..)
+    ( Vec3
+    , Matrix
     , Point
     -- * Vector operations
     , (<+>)
@@ -36,10 +36,6 @@ module DSMC.Util.Vector
     )
 
 where
-
-import qualified Data.Vector.Generic as VG
-import qualified Data.Vector.Generic.Mutable as VGM
-import qualified Data.Vector.Unboxed as VU
 
 import Prelude hiding (reverse)
 
