@@ -41,7 +41,17 @@ data Flow = Flow { concentration :: !Double
                  , temperature :: !Double
                  , mass :: !Double
                  , velocity :: !Vec3
+                 , statWeight :: !Double
+                 -- ^ How many real particles a single simulator
+                 -- represents.
                  }
+            deriving (Show)
+
+
+-- | Calculate what model concentration will simulate real flow
+-- concentration wrt statistical weight of single particle.
+modelConcentration :: Flow -> Double
+modelConcentration flow = (concentration flow) / (statWeight flow)
 
 
 -- | Repa array of particles.

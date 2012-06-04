@@ -95,7 +95,7 @@ spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !flow =
     let
         !s = sqrt $ boltzmann * (temperature flow) / (mass flow)
         !(u0, v0, w0) = velocity flow
-        count = round $ (concentration flow) * (volume d)
+        count = round $ (modelConcentration flow) * (volume d)
     in do
       VU.replicateM count $ do
          u <- normal u0 s g
