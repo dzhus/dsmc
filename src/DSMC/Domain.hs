@@ -7,7 +7,7 @@ Domain operations
 -}
 
 module DSMC.Domain
-    ( Domain(..)
+    ( Domain
     , makeDomain
     , clipToDomain
     , openBoundaryInjection
@@ -16,9 +16,9 @@ module DSMC.Domain
 
 where
 
-import Control.Monad.Primitive (PrimMonad, PrimState)
 import Control.Monad
 
+import Control.Monad.ST
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
@@ -86,12 +86,12 @@ volume !(Domain xmin xmax ymin ymax zmin zmax) =
 
 -- | Sample new particles inside a domain.
 --
--- PRNG state implies this to be a monadic action.
-spawnParticles :: PrimMonad m =>
-                  Gen (PrimState m)
+-- PRNG state implies this to be a monadic action. We want to use this
+-- with Strategies, thus fixing monad type as ST.
+spawnParticles :: GenST s
                -> Domain
                -> Flow
-               -> m (VU.Vector Particle)
+               -> ST s (VU.Vector Particle)
 spawnParticles g d@(Domain xmin xmax ymin ymax zmin zmax) flow =
     let
         !s = sqrt $ boltzmann * (temperature flow) / (mass flow)
@@ -108,11 +108,10 @@ spawnParticles g d@(Domain xmin xmax ymin ymax zmin zmax) flow =
          return $! ((x, y, z), (u, v, w))
 
 
-initialParticles :: PrimMonad m =>
-                    Gen (PrimState m)
+initialParticles :: GenST s
                  -> Domain
                  -> Flow
-                 -> m Ensemble
+                 -> ST s Ensemble
 initialParticles g d flow = liftM fromUnboxed1 $ spawnParticles g d flow
 
 
@@ -140,15 +139,14 @@ initialParticles g d flow = liftM fromUnboxed1 $ spawnParticles g d flow
 --
 -- TODO: VU.concat is O(n), but we could generate this in one single
 -- pass. For 
-openBoundaryInjection :: PrimMonad m =>
-                         Gen (PrimState m)
+openBoundaryInjection :: GenST s
                       -> Domain
                       -- ^ Simulation domain.
                       -> Double
                       -- ^ Interface domain extrusion length.
                       -> Flow
                       -> Ensemble
-                      -> m Ensemble
+                      -> ST s Ensemble
 openBoundaryInjection g domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
