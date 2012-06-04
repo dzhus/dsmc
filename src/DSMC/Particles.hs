@@ -10,6 +10,7 @@ Particle operations.
 module DSMC.Particles
     ( Particle
     , Ensemble
+    , Flow(..)
     , move
     , printEnsemble
     , fromUnboxed1
@@ -34,13 +35,13 @@ move dt (pos, v) = (pos <+> (v .^ dt), v)
 {-# INLINE move #-}
 
 
+-- | Flow with given concentration, temperature, mass of molecule and
+-- macroscopic velocity.
 data Flow = Flow { concentration :: !Double
                  , temperature :: !Double
                  , mass :: !Double
-                 , flow :: !Vec3
+                 , velocity :: !Vec3
                  }
-            -- ^ Flow with given concentration, temperature, mass of
-            -- molecule and macroscopic velocity.
 
 
 -- | Repa array of particles.

@@ -89,19 +89,13 @@ volume !(Domain xmin xmax ymin ymax zmin zmax) =
 spawnParticles :: PrimMonad m =>
                   Gen (PrimState m)
                -> Domain
-               -> Double
-               -- ^ Concentration.
-               -> Double
-               -- ^ Thermodynamic temperature.
-               -> Double
-               -- ^ Mass of molecule.
-               -> Vec3
-               -- ^ Flow velocity.
+               -> Flow
                -> m (VU.Vector Particle)
-spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !n !t !m !(u0, v0, w0) =
+spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !flow =
     let
-        !s = sqrt $ boltzmann * t / m
-        !count = round $ n * (volume d)
+        !s = sqrt $ boltzmann * (temperature flow) / (mass flow)
+        !(u0, v0, w0) = velocity flow
+        count = round $ (concentration flow) * (volume d)
     in do
       VU.replicateM count $ do
          u <- normal u0 s g
@@ -133,22 +127,18 @@ spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !n !t !m !(u0, v0, w
 -- >          +-----------------+
 --
 -- PRNG state requires this to be a monadic action.
+--
+-- TODO: VU.concat is O(n), but we could generate this in one single
+-- pass. For 
 openBoundaryInjection :: PrimMonad m =>
                          Gen (PrimState m)
                       -> Domain
                       -- ^ Simulation domain.
                       -> Double
                       -- ^ Interface domain extrusion length.
-                      -> Double
-                      -- ^ Concentration.
-                      -> Double
-                      -- ^ Thermodynamic temperature.
-                      -> Double
-                      -- ^ Mass of a molecule.
-                      -> Vec3
-                      -- ^ Flow velocity.
+                      -> Flow
                       -> m Ensemble
-openBoundaryInjection !g !domain !ex !n !t !m !flow =
+openBoundaryInjection !g !domain !ex !flow =
     let
         (w, l, h) = getDimensions domain
         (cx, cy, cz) = getCenter domain
@@ -159,14 +149,13 @@ openBoundaryInjection !g !domain !ex !n !t !m !flow =
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
     in do
-      v1 <- spawnParticles g d1 n t m flow
-      v2 <- spawnParticles g d2 n t m flow
-      v3 <- spawnParticles g d3 n t m flow
-      v4 <- spawnParticles g d4 n t m flow
-      v5 <- spawnParticles g d5 n t m flow
-      v6 <- spawnParticles g d6 n t m flow
-      let v = VU.concat [v1, v2, v3, v4, v5, v6]
-      return $ fromUnboxed1 v
+      v1 <- spawnParticles g d1 flow
+      v2 <- spawnParticles g d2 flow
+      v3 <- spawnParticles g d3 flow
+      v4 <- spawnParticles g d4 flow
+      v5 <- spawnParticles g d5 flow
+      v6 <- spawnParticles g d6 flow
+      return $ fromUnboxed1 $ VU.concat [v1, v2, v3, v4, v5, v6]
 
 
 -- | Filter out particles which are outside of the domain.
