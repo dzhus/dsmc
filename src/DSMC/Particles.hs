@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE BangPatterns #-}
 
 {-|
 
@@ -10,8 +9,10 @@ Particle operations.
 module DSMC.Particles
     ( -- * Particles
       Particle
-    , Ensemble
     , move
+    -- ** Particle ensembles
+    , Ensemble
+    , emptyEnsemble
     , printEnsemble
     , fromUnboxed1
     -- * Flows
@@ -34,7 +35,7 @@ type Particle = (Point, Vec3)
 
 -- | Linearly move particle for t time and update its position.
 move :: Time -> Particle -> Particle
-move dt (pos, v) = (pos <+> (v .^ dt), v)
+move !dt !(pos, v) = (pos <+> (v .^ dt), v)
 {-# INLINE move #-}
 
 
@@ -64,6 +65,10 @@ type Ensemble = R.Array R.U R.DIM1 Particle
 -- | Convert between Repa DIM1-arrays and unboxed vectors.
 fromUnboxed1 :: VU.Vector Particle -> Ensemble
 fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
+
+
+emptyEnsemble :: Ensemble
+emptyEnsemble = fromUnboxed1 $ VU.empty
 
 
 -- | Print particles, one per row, using the format:
