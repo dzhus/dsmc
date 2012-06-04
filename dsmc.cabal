@@ -16,7 +16,9 @@ library
   hs-source-dirs: src
 
   exposed-modules:
---    DSMC,
+    DSMC,
+    DSMC.Constants,
+    DSMC.Domain,
     DSMC.Traceables,
     DSMC.Types,
 --    DSMC.Macroscopic,
@@ -24,8 +26,6 @@ library
     DSMC.Util.Vector
 
   other-modules:
-    DSMC.Constants,
-    DSMC.Domain
     DSMC.Distributions,
     DSMC.Util
 
