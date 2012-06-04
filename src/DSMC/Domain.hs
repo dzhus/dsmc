@@ -11,12 +11,13 @@ module DSMC.Domain
     , makeDomain
     , clipToDomain
     , openBoundaryInjection
-    , spawnParticles
+    , initialParticles
     )
 
 where
 
 import Control.Monad.Primitive (PrimMonad, PrimState)
+import Control.Monad
 
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
@@ -91,7 +92,7 @@ spawnParticles :: PrimMonad m =>
                -> Domain
                -> Flow
                -> m (VU.Vector Particle)
-spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !flow =
+spawnParticles g d@(Domain xmin xmax ymin ymax zmin zmax) flow =
     let
         !s = sqrt $ boltzmann * (temperature flow) / (mass flow)
         !(u0, v0, w0) = velocity flow
@@ -107,8 +108,17 @@ spawnParticles !g !d@(Domain xmin xmax ymin ymax zmin zmax) !flow =
          return $! ((x, y, z), (u, v, w))
 
 
+initialParticles :: PrimMonad m =>
+                    Gen (PrimState m)
+                 -> Domain
+                 -> Flow
+                 -> m Ensemble
+initialParticles g d flow = liftM fromUnboxed1 $ spawnParticles g d flow
+
+
+
 -- | Sample new particles in 6 interface domains along each side of
--- rectangular simulation domain.
+-- rectangular simulation domain and add them to existing ensemble.
 --
 -- This function implements open boundary condition for
 -- three-dimensional simulation domain.
@@ -137,8 +147,9 @@ openBoundaryInjection :: PrimMonad m =>
                       -> Double
                       -- ^ Interface domain extrusion length.
                       -> Flow
+                      -> Ensemble
                       -> m Ensemble
-openBoundaryInjection !g !domain !ex !flow =
+openBoundaryInjection g domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
         (cx, cy, cz) = getCenter domain
@@ -148,6 +159,7 @@ openBoundaryInjection !g !domain !ex !flow =
         d4 = makeDomain (cx, cy - (l + ex) / 2, cz) w ex h
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
+        v = R.toUnboxed ens
     in do
       v1 <- spawnParticles g d1 flow
       v2 <- spawnParticles g d2 flow
@@ -155,7 +167,7 @@ openBoundaryInjection !g !domain !ex !flow =
       v4 <- spawnParticles g d4 flow
       v5 <- spawnParticles g d5 flow
       v6 <- spawnParticles g d6 flow
-      return $ fromUnboxed1 $ VU.concat [v1, v2, v3, v4, v5, v6]
+      return $ fromUnboxed1 $ VU.concat [v, v1, v2, v3, v4, v5, v6]
 
 
 -- | Filter out particles which are outside of the domain.
@@ -163,7 +175,7 @@ openBoundaryInjection !g !domain !ex !flow =
 -- This is a monadic action because 'selectP' is used, which does
 -- 'unsafePerformIO' under the hood.
 clipToDomain :: Monad m => Domain -> Ensemble -> m Ensemble
-clipToDomain !(Domain xmin xmax ymin ymax zmin zmax) ens = 
+clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens = 
     let
         (R.Z R.:. size) = R.extent ens
         -- | Get i-th particle from ensemble
