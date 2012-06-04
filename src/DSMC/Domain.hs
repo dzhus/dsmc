@@ -2,7 +2,11 @@
 
 {-|
 
-Domain operations
+Domain operations: defining domains; open boundary conditions &
+clipping for DSMC steps.
+
+PRNG required to sample molecular velocities implies monadic interface
+for most of operations. We use functions specifically typed for 'ST'.
 
 -}
 
