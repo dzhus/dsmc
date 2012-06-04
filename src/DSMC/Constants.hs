@@ -1,10 +1,16 @@
 -- | Physical constants.
 
 module DSMC.Constants
-    (avogadro,
-     boltzmann)
+    ( amu
+    , avogadro
+    , boltzmann)
 
 where
+
+
+-- | Atomic mass unit 1.660538921(73)e-27
+amu :: Double
+amu = 1.6605389217373737e-27
 
 
 -- | Avogadro constant 6.02214129(27)e23
