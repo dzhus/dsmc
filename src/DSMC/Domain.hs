@@ -20,8 +20,6 @@ module DSMC.Domain
 
 where
 
-import Control.Monad
-
 import Control.Monad.ST
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
@@ -31,6 +29,7 @@ import System.Random.MWC.Distributions (normal)
 
 import DSMC.Constants
 import DSMC.Particles
+import DSMC.Util
 import DSMC.Util.Vector
 
 
@@ -90,13 +89,12 @@ volume !(Domain xmin xmax ymin ymax zmin zmax) =
 
 -- | Sample new particles inside a domain.
 --
--- PRNG state implies this to be a monadic action. We want to use this
--- with Strategies, thus fixing monad type as ST.
-spawnParticles :: GenST s
-               -> Domain
+-- PRNG state implies this to be a monadic action.
+spawnParticles :: Domain
                -> Flow
+               -> GenST s
                -> ST s (VU.Vector Particle)
-spawnParticles g d@(Domain xmin xmax ymin ymax zmin zmax) flow =
+spawnParticles d@(Domain xmin xmax ymin ymax zmin zmax) flow g =
     let
         !s = sqrt $ boltzmann * (temperature flow) / (mass flow)
         !(u0, v0, w0) = velocity flow
@@ -112,12 +110,19 @@ spawnParticles g d@(Domain xmin xmax ymin ymax zmin zmax) flow =
          return $! ((x, y, z), (u, v, w))
 
 
-initialParticles :: GenST s
+-- | Pure version of 'spawnParticles'.
+pureSpawnParticles :: Domain
+                   -> Flow
+                   -> Seed
+                   -> VU.Vector Particle
+pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
+
+
+initialParticles :: Seed
                  -> Domain
                  -> Flow
-                 -> ST s Ensemble
-initialParticles g d flow = liftM fromUnboxed1 $ spawnParticles g d flow
-
+                 -> Ensemble
+initialParticles g d flow = fromUnboxed1 $ pureSpawnParticles d flow g
 
 
 -- | Sample new particles in 6 interface domains along each side of
@@ -130,6 +135,7 @@ initialParticles g d flow = liftM fromUnboxed1 $ spawnParticles g d flow
 -- extrusion along the outward normal of the face.
 --
 -- In 2D projection:
+--
 -- >          +-----------------+
 -- >          |    Interface1   |
 -- >       +--+-----------------+--+
@@ -139,19 +145,20 @@ initialParticles g d flow = liftM fromUnboxed1 $ spawnParticles g d flow
 -- >          |        I2       |
 -- >          +-----------------+
 --
--- PRNG state requires this to be a monadic action.
---
--- TODO: VU.concat is O(n), but we could generate this in one single
--- pass. For 
-openBoundaryInjection :: GenST s
+-- Particles in every interface domain are spawned in parallel using
+-- Strategies. We cannot pass 'GenST' for 'spawnParticles' as an
+-- argument for this function as this would violate no-sharing
+-- restriction of ST, thus explicit 6 seeds are used to 'restore' PRNG
+-- states.
+openBoundaryInjection :: Seed
                       -> Domain
                       -- ^ Simulation domain.
                       -> Double
                       -- ^ Interface domain extrusion length.
                       -> Flow
                       -> Ensemble
-                      -> ST s Ensemble
-openBoundaryInjection g domain ex flow ens =
+                      -> Ensemble
+openBoundaryInjection s domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
         (cx, cy, cz) = getCenter domain
@@ -162,9 +169,9 @@ openBoundaryInjection g domain ex flow ens =
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
         v = [R.toUnboxed ens]
-    in do
-      new <- mapM (\d -> spawnParticles g d flow) [d1, d2, d3, d4, d5, d6]
-      return $ fromUnboxed1 $ VU.concat (new ++ v)
+        new = map (\d -> pureSpawnParticles d flow s) [d1, d2, d3, d4, d5, d6]
+    in
+      fromUnboxed1 $ VU.concat (new ++ v)
 
 
 -- | Filter out particles which are outside of the domain.
@@ -172,7 +179,7 @@ openBoundaryInjection g domain ex flow ens =
 -- This is a monadic action because 'selectP' is used, which does
 -- 'unsafePerformIO' under the hood.
 clipToDomain :: Monad m => Domain -> Ensemble -> m Ensemble
-clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens = 
+clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
     let
         (R.Z R.:. size) = R.extent ens
         -- | Get i-th particle from ensemble
@@ -182,7 +189,7 @@ clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
         -- | Check if particle is in the domain.
         pred :: Int -> Bool
         pred i =
-            let 
+            let
                 ((x, y, z), _) = getter i
             in
               xmax >= x && x >= xmin &&
