@@ -5,11 +5,7 @@
 
 module DSMC.Traceables
     ( -- * Traces
-      Trace
-    , HitPoint(..)
-    -- * Primitive trace operations
-    , intersectTraces
-    , trace
+      HitPoint(..)
     , hitPoint
     -- * Traceable bodies
     , Body(..)
@@ -24,6 +20,7 @@ import Data.Strict.Maybe
 import Data.Strict.Tuple
 
 import DSMC.Particles
+import DSMC.Types
 import DSMC.Util
 import DSMC.Util.Vector
 
@@ -213,11 +210,12 @@ trace !(Intersection b1 b2) !p =
 trace !(Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
 
 
-futureTrace :: Trace
-futureTrace = Just $ (HitPoint 0 Nothing) :!: (HitPoint infinityP Nothing)
-
-
--- | Assuming particle is outside of body, get its first hit point of
--- on a body surface in future.
-hitPoint :: Body -> Particle -> Maybe HitPoint
-hitPoint !b !p = fst <$> (intersectTraces futureTrace $ trace b p)
+-- | If particle has hit the body during last time step, calculate the
+-- corresponding 'HitPoint'.
+hitPoint :: Time -> Body -> Particle -> Maybe HitPoint
+hitPoint !dt !b !p =
+    let
+        lastHit = Just $ (HitPoint (-dt) Nothing :!: HitPoint 0 Nothing)
+    in
+      fst <$> (intersectTraces lastHit $ trace b p)
+{-# INLINE hitPoint #-}
