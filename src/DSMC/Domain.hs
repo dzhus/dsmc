@@ -28,9 +28,9 @@ import qualified Data.Vector.Unboxed as VU
 import System.Random.MWC
 import System.Random.MWC.Distributions (normal)
 
-import DSMC.Constants
 import DSMC.Particles
 import DSMC.Util
+import DSMC.Util.Constants
 import DSMC.Util.Vector
 
 

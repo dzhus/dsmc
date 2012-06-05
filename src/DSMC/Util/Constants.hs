@@ -1,6 +1,6 @@
 -- | Physical constants.
 
-module DSMC.Constants
+module DSMC.Util.Constants
     ( amu
     , avogadro
     , boltzmann)

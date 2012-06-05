@@ -17,7 +17,6 @@ library
 
   exposed-modules:
     DSMC,
-    DSMC.Constants,
     DSMC.Domain,
     DSMC.Traceables,
     DSMC.Types,
@@ -26,8 +25,8 @@ library
     DSMC.Util.Vector
 
   other-modules:
-    DSMC.Distributions,
-    DSMC.Util
+    DSMC.Util,
+    DSMC.Util.Constants
 
   build-depends:
     attoparsec  == 0.10.*,
