@@ -31,7 +31,7 @@ module DSMC.Util.Vector
     , dotM
     , diag
     , addM
-    -- * Cartesian system building
+    -- * Cartesian system helpers
     , buildCartesian
     )
 
