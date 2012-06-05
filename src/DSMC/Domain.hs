@@ -97,8 +97,8 @@ spawnParticles :: Domain
                -> ST s (VU.Vector Particle)
 spawnParticles d@(Domain xmin xmax ymin ymax zmin zmax) flow g =
     let
-        !s = sqrt $ boltzmann * (temperature flow) / (mass flow)
-        !(u0, v0, w0) = velocity flow
+        s = sqrt $ boltzmann * (temperature flow) / (mass flow)
+        (u0, v0, w0) = velocity flow
         count = round $ (modelConcentration flow) * (volume d)
     in do
       VU.replicateM count $ do
@@ -108,7 +108,7 @@ spawnParticles d@(Domain xmin xmax ymin ymax zmin zmax) flow g =
          x <- uniformR (xmin, xmax) g
          y <- uniformR (ymin, ymax) g
          z <- uniformR (zmin, zmax) g
-         return $! ((x, y, z), (u, v, w))
+         return $ ((x, y, z), (u, v, w))
 
 
 -- | Pure version of 'spawnParticles'.
