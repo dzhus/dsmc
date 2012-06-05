@@ -21,6 +21,7 @@ module DSMC.Domain
 where
 
 import Control.Monad.ST
+import Control.Parallel.Strategies
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
@@ -150,7 +151,7 @@ initialParticles g d flow = fromUnboxed1 $ pureSpawnParticles d flow g
 -- argument for this function as this would violate no-sharing
 -- restriction of ST, thus explicit 6 seeds are used to 'restore' PRNG
 -- states.
-openBoundaryInjection :: Seed
+openBoundaryInjection :: (Seed, Seed, Seed, Seed, Seed, Seed)
                       -> Domain
                       -- ^ Simulation domain.
                       -> Double
@@ -158,7 +159,7 @@ openBoundaryInjection :: Seed
                       -> Flow
                       -> Ensemble
                       -> Ensemble
-openBoundaryInjection s domain ex flow ens =
+openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
         (cx, cy, cz) = getCenter domain
@@ -169,7 +170,8 @@ openBoundaryInjection s domain ex flow ens =
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
         v = [R.toUnboxed ens]
-        new = map (\d -> pureSpawnParticles d flow s) [d1, d2, d3, d4, d5, d6]
+        new = parMap rpar (\(d, s) -> pureSpawnParticles d flow s) $
+              zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
     in
       fromUnboxed1 $ VU.concat (new ++ v)
 

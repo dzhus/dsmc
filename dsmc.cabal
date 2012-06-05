@@ -34,6 +34,7 @@ library
     base        == 4.*,
     bytestring  == 0.9.*,
     mwc-random  == 0.12.*,
+    parallel    == 3.2.*,
     primitive   == 0.4.*,
     repa        == 3.1.*,
     strict      == 0.3.*,

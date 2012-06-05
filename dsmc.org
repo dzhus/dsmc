@@ -220,7 +220,8 @@
   http://www.haskell.org/haskellwiki/Performance/GHC
 ** Параллелизм
    
-*** TODO openBoundaryInjection
+*** DONE openBoundaryInjection
+    CLOSED: [2012-06-05 Вт. 13:57]
     Шесть подобластей можно наполнять данными параллельно!
 
 *** TODO traverse
