@@ -22,11 +22,11 @@ library
     DSMC.Types,
 --    DSMC.Macroscopic,
     DSMC.Particles,
+    DSMC.Util.Constants,
     DSMC.Util.Vector
 
   other-modules:
-    DSMC.Util,
-    DSMC.Util.Constants
+    DSMC.Util
 
   build-depends:
     attoparsec  == 0.10.*,
