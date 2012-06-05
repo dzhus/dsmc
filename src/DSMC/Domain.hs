@@ -186,11 +186,11 @@ clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
         (R.Z R.:. size) = R.extent ens
         -- | Get i-th particle from ensemble
         getter :: Int -> Particle
-        getter i = (R.!) ens (R.ix1 i)
+        getter !i = (R.!) ens (R.ix1 i)
         {-# INLINE getter #-}
         -- | Check if particle is in the domain.
         pred :: Int -> Bool
-        pred i =
+        pred !i =
             let
                 ((x, y, z), _) = getter i
             in
