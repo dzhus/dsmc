@@ -24,6 +24,8 @@ reflectSpecular (pos, v) n t =
 
 
 -- | Advance particles in space without collisions.
+--
+-- We use Repa parallel 'R.map', thus it's a monadic action.
 advance :: Monad m =>
            Double
         -- ^ Time step.
