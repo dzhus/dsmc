@@ -74,6 +74,9 @@ type Trace = Maybe (Pair HitPoint HitPoint)
 
 -- | Time when particle hits the surface, along with normal at hit
 -- point. If hit is in infinity, then normal is Nothing.
+--
+-- Note that this datatype is strict only on first argument: we do not
+-- compare normals when classifying traces.
 data HitPoint = HitPoint !Double (Maybe Vec3)
                 deriving (Eq, Ord, Show)
 
