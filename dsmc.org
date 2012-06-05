@@ -218,22 +218,30 @@
    частные значения по всем частицам в ячейке.
 * Направления оптимизации
   http://www.haskell.org/haskellwiki/Performance/GHC
-** TODO solveq
+** Параллелизм
+   
+*** TODO openBoundaryInjection
+    Шесть подобластей можно наполнять данными параллельно!
 
-** TODO Мемоизация результатов processParticle
-   Частица может попасть в несколько ячеек при вычислении
-   макроскопических параметров (без мемоизации замедляется).
+*** TODO traverse
+    Реповый комбинатор, который не выполняет проверки границ.
 ** Типы
   http://www.haskell.org/haskellwiki/Performance/Datatypes   
-*** TODO Быстрые вектора
+*** IN_PROGRESS Быстрые вектора
     Строгие типы + unboxing
 
-    Vector !Double !Double !Double
+    Для Unbox a использовали Tuple (со своим строгим вектором
+    получается <<loop>>?). С одной стороны, Unbox. С другой стороны,
+    не будет ли ребоксинга на листочках?
+
+    A single-constructor datatype can be unpacked when it is passed to
+    a strict function.
+    
 *** MAYBE Traceables
     - improve uniteTraces & intersectTraces
       
     - a different type for HitSegment? Not tuples but custom datatype
-      with unboxed values.
+      with unboxed values. — как и для векторов
 ** MAYBE -optc-ffast-math
    Can't use straight away now since we use infinityP/infinityN
 ** IN_PROGRESS Export lists
@@ -243,6 +251,7 @@
    if they are very big. Without an explicit export list, GHC must
    assume that every function is exported, and hence (to avoid code
    bloat) is more conservative about inlining.
+   
 * Интеграция
 ** Haskell-библиотека Implicit (CSG)
    https://github.com/colah/ImplicitCAD
@@ -253,5 +262,6 @@
 * Прочие задачи
 ** TODO Выполнять предварительную обработку тел
    - [ ] force normalization for normal vectors;
-** MAYBE Domain implementation
+** DONE Domain implementation
+   CLOSED: [2012-06-05 Вт. 01:30]
    Use message-passing instead of pattern-matching?
