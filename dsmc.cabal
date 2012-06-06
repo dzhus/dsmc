@@ -17,6 +17,7 @@ library
 
   exposed-modules:
     DSMC,
+    DSMC.Cells,
     DSMC.Domain,
     DSMC.Traceables,
     DSMC.Types,
