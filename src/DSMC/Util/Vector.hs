@@ -1,12 +1,8 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE BangPatterns #-}
 
 {-| 
 
-Simple vectors and matrices.
-
-All functions and datatypes are strict.
+Simple 3-vectors and matrices built atop tuples.
 
 -}
 
