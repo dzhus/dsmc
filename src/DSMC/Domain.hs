@@ -23,6 +23,7 @@ module DSMC.Domain
 where
 
 import Control.Monad.ST
+
 import Control.Parallel.Strategies
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
