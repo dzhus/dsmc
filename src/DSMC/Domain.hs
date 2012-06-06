@@ -147,10 +147,7 @@ initialParticles g d flow = fromUnboxed1 $ pureSpawnParticles d flow g
 -- >          +-----------------+
 --
 -- Particles in every interface domain are spawned in parallel using
--- Strategies. We cannot pass 'GenST' for 'spawnParticles' as an
--- argument for this function as this would violate no-sharing
--- restriction of ST, thus explicit 6 seeds are used to 'restore' PRNG
--- states.
+-- Strategies. Explicit 6 seeds are used to 'restore' PRNG states.
 openBoundaryInjection :: (Seed, Seed, Seed, Seed, Seed, Seed)
                       -> Domain
                       -- ^ Simulation domain.
@@ -189,14 +186,14 @@ clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
         getter !i = (R.!) ens (R.ix1 i)
         {-# INLINE getter #-}
         -- | Check if particle is in the domain.
-        pred :: Int -> Bool
-        pred !i =
+        pred' :: Int -> Bool
+        pred' !i =
             let
                 ((x, y, z), _) = getter i
             in
               xmax >= x && x >= xmin &&
               ymax >= y && y >= ymin &&
               zmax >= z && z >= zmin
-        {-# INLINE pred #-}
+        {-# INLINE pred' #-}
     in do
-      return $ R.selectP pred getter size ens
+      return $ R.selectP pred' getter size ens
