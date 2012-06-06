@@ -18,6 +18,7 @@ module DSMC.Domain
     , clipToDomain
     , openBoundaryInjection
     , initialParticles
+    , DomainSeed
     )
 
 where
@@ -67,6 +68,10 @@ makeDomain !(x, y, z) !w !l !h =
     in
       Domain xmin xmax ymin ymax zmin zmax
 {-# INLINE makeDomain #-}
+
+
+-- | PRNG seeds used by particle generators.
+type DomainSeed = (Seed, Seed, Seed, Seed, Seed, Seed)
 
 
 -- | Calculate width, length and height of a domain, which are
@@ -153,16 +158,15 @@ initialParticles g d flow = (fromUnboxed1 res, s)
 -- >          +-----------------+
 --
 -- Particles in every interface domain are spawned in parallel using
--- Strategies. Explicit 6 seeds are used to 'restore' PRNG states and
--- repack and return it back to caller.
-openBoundaryInjection :: (Seed, Seed, Seed, Seed, Seed, Seed)
+-- Strategies.
+openBoundaryInjection :: DomainSeed
                       -> Domain
                       -- ^ Simulation domain.
                       -> Double
                       -- ^ Interface domain extrusion length.
                       -> Flow
                       -> Ensemble
-                      -> (Ensemble, (Seed, Seed, Seed, Seed, Seed, Seed))
+                      -> (Ensemble, DomainSeed)
 openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
