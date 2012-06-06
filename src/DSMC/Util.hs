@@ -47,7 +47,7 @@ solveq !a !b !c
 {-# INLINE solveq #-}
 
 
--- | Conver ST action with PRNG state into a pure function of seed.
+-- | Convert ST action with PRNG state into a pure function of seed.
 purifyRandomST :: (forall s.GenST s -> ST s a) -> Seed -> a
 purifyRandomST f seed = runST $ restore seed >>= f
 {-# INLINE purifyRandomST #-}
