@@ -3,13 +3,14 @@
 Particle tracking for spatial grid for DSMC.
 
 This module is used to sort particles into ordered vector of cells for
-collision step or macroscopic parameter sampling.
+collision step or macroscopic parameter sampling. We do not provide
+any special «cell» datatype since it varies which cell data is
+required on every step.
 
 -}
 
 module DSMC.Cells
-    ( Cell(..)
-    , CellContents
+    ( CellContents
     , Classifier
     , sortParticles
     )
@@ -26,10 +27,6 @@ import qualified Data.Vector.Unboxed.Mutable as VUM
 
 import DSMC.Domain
 import DSMC.Particles
-
-
--- | Cell has certain location in space and contains particles.
-data Cell = Cell !Domain !CellContents
 
 
 -- | Cell contents with particles.
