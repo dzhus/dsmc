@@ -10,7 +10,8 @@ on every step.
 -}
 
 module DSMC.Cells
-    ( CellContents
+    ( -- * Generic functions
+      CellContents
     , Classifier
     , sortParticles
     -- * Regular subdivision
@@ -110,16 +111,17 @@ sortParticles cellCount classify ens = do
 type RegularSubdivision = (Domain, Double, Double, Double)
 
 
--- | Classify particles into cells of regular grid with given spatial
--- steps.
+-- | Return grid cell count and classifier for regular grid over
+-- domain with given spatial steps.
 makeRegularClassifier :: RegularSubdivision
-                      -> Classifier
+                      -> (Int, Classifier)
 makeRegularClassifier (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
-    classify
+    (xsteps * ysteps * zsteps, classify)
     where
-        (w, l, _) = getDimensions d
+        (w, l, h) = getDimensions d
         xsteps = ceiling $ w / hx
         ysteps = ceiling $ l / hy
+        zsteps = ceiling $ h / hz
         classify ((x, y, z), _) =
             let
                 nx = floor $ (x - xmin) / hx
@@ -132,7 +134,7 @@ makeRegularClassifier (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
 -- | Indexing function which maps cell numbers to central points of
 -- regular cells.
 makeRegularIndexer :: RegularSubdivision
-                   -> Int -> Point
+                   -> (Int -> Point)
 makeRegularIndexer (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
     indefy
     where
