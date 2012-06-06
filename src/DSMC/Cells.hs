@@ -8,7 +8,8 @@ collision step or macroscopic parameter sampling.
 -}
 
 module DSMC.Cells
-    ( CellContents
+    ( Cell(..)
+    , CellContents
     , Classifier
     , sortParticles
     )
@@ -23,7 +24,12 @@ import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
 
+import DSMC.Domain
 import DSMC.Particles
+
+
+-- | Cell has certain location in space and contains particles.
+data Cell = Cell !Domain !CellContents
 
 
 -- | Cell contents with particles.
@@ -55,6 +61,7 @@ classifyAll cellCount classify ens = do
       -- Increment cell particle count
       count <- VUM.unsafeRead lengths cellNumber
       VUM.unsafeWrite lengths cellNumber (count + 1)
+      -- Yield cell number and index of particle in the cell
       return $ (cellNumber, count))
 
   lengths' <- VU.unsafeFreeze lengths
@@ -64,12 +71,13 @@ classifyAll cellCount classify ens = do
 -- | Sort particle ensemble into @N@ cells using the classifier
 -- function. Cells are stored as irregular two-dimensional array,
 -- using mutable 'Data.Vector.Unboxed.Vector' operations internally.
--- 
+--
 -- Classifier extent must match @N@, yielding numbers between @0@ and
 -- @N-1@.
-sortParticles :: Int 
-              -> Classifier 
-              -> Ensemble 
+sortParticles :: Int
+              -- ^ Number of cells.
+              -> Classifier
+              -> Ensemble
               -> ST s (V.Vector CellContents)
 sortParticles cellCount classify ens = do
   let ens' = R.toUnboxed ens
