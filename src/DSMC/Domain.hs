@@ -118,15 +118,18 @@ spawnParticles d@(Domain xmin xmax ymin ymax zmin zmax) flow g =
 pureSpawnParticles :: Domain
                    -> Flow
                    -> Seed
-                   -> VU.Vector Particle
+                   -> (VU.Vector Particle, Seed)
 pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
 
 
+-- | Sample initial particles in the domain.
 initialParticles :: Seed
                  -> Domain
                  -> Flow
-                 -> Ensemble
-initialParticles g d flow = fromUnboxed1 $ pureSpawnParticles d flow g
+                 -> (Ensemble, Seed)
+initialParticles g d flow = (fromUnboxed1 res, s)
+                            where
+                              !(res, s) = pureSpawnParticles d flow g
 
 
 -- | Sample new particles in 6 interface domains along each side of
@@ -150,7 +153,8 @@ initialParticles g d flow = fromUnboxed1 $ pureSpawnParticles d flow g
 -- >          +-----------------+
 --
 -- Particles in every interface domain are spawned in parallel using
--- Strategies. Explicit 6 seeds are used to 'restore' PRNG states.
+-- Strategies. Explicit 6 seeds are used to 'restore' PRNG states and
+-- repack and return it back to caller.
 openBoundaryInjection :: (Seed, Seed, Seed, Seed, Seed, Seed)
                       -> Domain
                       -- ^ Simulation domain.
@@ -158,7 +162,7 @@ openBoundaryInjection :: (Seed, Seed, Seed, Seed, Seed, Seed)
                       -- ^ Interface domain extrusion length.
                       -> Flow
                       -> Ensemble
-                      -> Ensemble
+                      -> (Ensemble, (Seed, Seed, Seed, Seed, Seed, Seed))
 openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
@@ -170,10 +174,11 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
         v = [R.toUnboxed ens]
-        new = parMap rpar (\(d, s) -> pureSpawnParticles d flow s) $
-              zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
+        (new, (s1':s2':s3':s4':s5':s6':_)) = unzip $
+                       parMap rpar (\(d, s) -> pureSpawnParticles d flow s) $
+                       zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
     in
-      fromUnboxed1 $ VU.concat (new ++ v)
+      (fromUnboxed1 $ VU.concat (new ++ v), (s1', s2', s3', s4', s5', s6'))
 
 
 -- | Filter out particles which are outside of the domain.
