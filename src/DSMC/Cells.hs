@@ -1,4 +1,4 @@
-{-
+{-|
 
 Particle tracking for spatial grid for DSMC.
 
@@ -61,12 +61,12 @@ classifyAll cellCount classify ens = do
   return $ (classes, lengths')
 
 
--- | Sort particle ensemble into `N` cells using the classifier
+-- | Sort particle ensemble into @N@ cells using the classifier
 -- function. Cells are stored as irregular two-dimensional array,
 -- using mutable 'Data.Vector.Unboxed.Vector' operations internally.
 -- 
--- Classifier extent must match `N`, yielding numbers between
--- `0`..`N-1`.
+-- Classifier extent must match @N@, yielding numbers between @0@ and
+-- @N-1@.
 sortParticles :: Int 
               -> Classifier 
               -> Ensemble 
