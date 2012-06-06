@@ -97,7 +97,6 @@
      соударений) и проверять на удары только с поверхностями,
      попавшими в ячейку сетки
 * Отрисовка тел
-  
 ** Как отрисовывать
 
 *** Трассировка лучей
@@ -176,9 +175,9 @@
    - http://www.openscad.org/ — создание CSG-моделей;
    - http://gts.sourceforge.net/ — GNU Triangulated Surface (операции
      над поверхностями);
-* OpenGL
-  
-** Освещение
+** OpenGL
+   
+*** Освещение
 #+BEGIN_SRC haskell
   -- Отдельный источник (ambient, diffuse и т.д.)
   ambient light0 $= lightColor
@@ -192,43 +191,49 @@
   lightModelAmbient $= lightColor
 #+END_SRC
 
-** Включение отсечки по глубине
+*** Включение отсечки по глубине
 #+BEGIN_SRC haskell
   depthFunc $= Just Lequal
 #+END_SRC
 
-** Установка камеры
+*** Установка камеры
 #+BEGIN_SRC haskell
   lookAt (Vertex3 0.0 0.0 5.0) (Vertex3 0.0 0.0 0.0) (Vector3 0.0 1.0 0.0)
   lookAt eye lookto up
 #+END_SRC
 
-** Трафаретный буфер
-   stencilFunc (f, ref, mask) задаёт условие прохождения трафаретного
-   теста. stencilOp задаёт преобразование соответствующей точки
-   буфера.
-   Плюс надо включить: stencilTest $= Enabled.
-   Очистка: clear [StencilBuffer].
-   При инициализации: [WithStencilBuffer]
+*** Трафаретный буфер
+    stencilFunc (f, ref, mask) задаёт условие прохождения трафаретного
+    теста. stencilOp задаёт преобразование соответствующей точки
+    буфера.
+    Плюс надо включить: stencilTest $= Enabled.
+    Очистка: clear [StencilBuffer].
+    При инициализации: [WithStencilBuffer]
 
-* Макроскопические параметры
-** Подход
-   Разбиваем пространство на множество ячеек (возможно пересекающихся,
-   если используются сферы), вычисляем значение параметра, осредняя
-   частные значения по всем частицам в ячейке.
-* Направления оптимизации
+* Оптимизации
   http://www.haskell.org/haskellwiki/Performance/GHC
 ** Параллелизм
    
+*** TODO Как семплировать макропараметры
+    В каждой ячейке может быть разное количество частиц, поэтому для
+    использования Repa или Accelerate придётся дополнить разреженную матрицу до
+    плотной по самой жирной ячейке. Можно оказаться без памяти (в
+    худшем (невероятном) случае N=1e6, Nc=1000 и имеем 1e9 элементов
+    массива — память треснет).
+
+    С репой можно было бы вычисление макропараметров делать как
+    свёртка по внутреннему измерению. А так придётся parMap.
 *** DONE openBoundaryInjection
     CLOSED: [2012-06-05 Вт. 13:57]
     Шесть подобластей можно наполнять данными параллельно!
 
-*** TODO traverse
-    Реповый комбинатор, который не выполняет проверки границ.
+*** TODO Repa unsafe
+    Перейти на реповые комбинаторы, которые не выполняют проверки
+    границ.
 ** Типы
   http://www.haskell.org/haskellwiki/Performance/Datatypes   
-*** IN_PROGRESS Быстрые вектора
+*** DONE Быстрые вектора
+    CLOSED: [2012-06-06 Ср. 21:29]
     Строгие типы + unboxing
 
     Для Unbox a использовали Tuple (со своим строгим вектором
@@ -238,6 +243,8 @@
     A single-constructor datatype can be unpacked when it is passed to
     a strict function.
     
+    Роман сказал, что следует надеяться на GHC и отсутствие
+    ребоксинга.
 *** MAYBE Traceables
     - improve uniteTraces & intersectTraces
       
@@ -261,8 +268,12 @@
    движок от полигональной модели? в SMILE делали так).
    
 * Прочие задачи
+
+** TODO Typesafe cell indexing
+   (Int -> Point), Classifier и размер сетки должны проверяться на
+   уровне типов.
 ** TODO Выполнять предварительную обработку тел
-   - [ ] force normalization for normal vectors;
+   - [ ] force normalization for normal vectors
 ** DONE Domain implementation
    CLOSED: [2012-06-05 Вт. 01:30]
    Use message-passing instead of pattern-matching?
