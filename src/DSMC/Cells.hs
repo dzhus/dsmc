@@ -13,6 +13,10 @@ module DSMC.Cells
     ( CellContents
     , Classifier
     , sortParticles
+    -- * Regular subdivision
+    , RegularSubdivision
+    , makeRegularClassifier
+    , makeRegularIndexer
     )
 
 where
@@ -27,6 +31,7 @@ import qualified Data.Vector.Unboxed.Mutable as VUM
 
 import DSMC.Domain
 import DSMC.Particles
+import DSMC.Util.Vector
 
 
 -- | Cell contents with particles.
@@ -98,3 +103,51 @@ sortParticles cellCount classify ens = do
   V.generateM cellCount (\j -> do
                            cell <- VM.unsafeRead cells j
                            VU.unsafeFreeze cell)
+
+
+-- | Domain divided in regular grid with given steps by X, Y and Z
+-- axes.
+type RegularSubdivision = (Domain, Double, Double, Double)
+
+
+-- | Classify particles into cells of regular grid with given spatial
+-- steps.
+makeRegularClassifier :: RegularSubdivision
+                      -> Classifier
+makeRegularClassifier (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
+    classify
+    where
+        (w, l, _) = getDimensions d
+        xsteps = ceiling $ w / hx
+        ysteps = ceiling $ l / hy
+        classify ((x, y, z), _) =
+            let
+                nx = floor $ (x - xmin) / hx
+                ny = floor $ (y - ymin) / hy
+                nz = floor $ (z - zmin) / hz
+            in
+              nx + ny * xsteps + nz * xsteps * ysteps
+
+
+-- | Indexing function which maps cell numbers to central points of
+-- regular cells.
+makeRegularIndexer :: RegularSubdivision
+                   -> Int -> Point
+makeRegularIndexer (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
+    indefy
+    where
+        (w, l, _) = getDimensions d
+        xsteps = ceiling $ w / hx
+        ysteps = ceiling $ l / hy
+        zf = xsteps * ysteps
+
+        indefy i =
+            let
+                (nz, i') = i `divMod` zf
+                z = zmin + fromIntegral nz * hz + hz / 2
+
+                (ny, nx) = i' `divMod` ysteps
+                y = ymin + fromIntegral ny * hy + hy / 2
+                x = xmin + fromIntegral nx * hx + hx / 2
+            in
+              (x, y, z)

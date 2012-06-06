@@ -52,29 +52,3 @@ advance !dt !b ens =
     in
       R.computeP $ reflected
 
-
--- | Classify particles into cells of regular grid with given spatial
--- steps.
-makeRegularClassifier :: Domain
-                      -> Double
-                      -- ^ X step.
-                      -> Double
-                      -- ^ Y step.
-                      -> Double
-                      -- ^ Z step.
-                      -> Classifier
-makeRegularClassifier d@(Domain xmin _ ymin _ zmin _)
-                      hx hy hz =
-    let
-        (w, l, _) = getDimensions d
-        xsteps = ceiling $ w / hx
-        ysteps = ceiling $ l / hy
-        classify ((x, y, z), _) =
-            let
-                nx = floor $ (x - xmin) / hx
-                ny = floor $ (y - ymin) / hy
-                nz = floor $ (z - zmin) / hz
-            in
-              nx + ny * xsteps + nz * xsteps * ysteps
-    in
-      classify

@@ -1,6 +1,8 @@
 {-|
 
-Macroscopic variables calculation.
+Macroscopic parameters calculation.
+
+We use regular spatial grid for sampling.
 
 -}
 
@@ -8,53 +10,48 @@ module DSMC.Macroscopic
 
 where
 
-import Data.List
+import Prelude hiding (Just, Nothing, Maybe, fst)
 
-import DSMC.Types
+import Data.Strict.Maybe
+
+import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as VU
+
+import DSMC.Cells
+import DSMC.Domain
+import DSMC.Particles
 import DSMC.Util.Vector
 
 
--- | Cell contains a list of particles and is used to calculate a
--- macroscopic variable at single point of simulation domain.
-data Cell = Cell Point [Particle]
+-- | Sampling cell is attached to certain point in space and has a
+-- number of specimen.
+data MacroCell = MacroCell !Point !CellContents
 
 
--- | Macroscopic velocity.
-data Velocity = Velocity Point Vec3
+-- | Macroscopic parameters are measured at certain point by averaging
+-- over specimen.
+type Macroscopic a = (Point, a)
 
 
--- | Sort particles in domain to a list of spherical cells with given
--- radius. Cells are centered at nodes regular grid with spatial step
--- (in each direction) equal to radius.
-sphericalCells :: Domain 
-              -> [Particle] 
-              -- ^ All particles in domain.
-              -> Double
-              -- ^ Cell radius.
-              -> [Cell]
-sphericalCells (Box xmin xmax ymin ymax zmin zmax) particles radius =
-    [let
-        cx = xmin + x * radius
-        cy = ymin + y * radius
-        cz = zmin + z * radius
-        c = Vec3 cx cy cz
-     in
-       (Cell c (filter (\p -> (distance (position p) c) < radius) particles))
-           | x <- [0 .. (xmax - xmin) / radius],
-             y <- [0 .. (ymax - ymin) / radius],
-             z <- [0 .. (zmax - zmin) / radius]]
+-- | Flow velocity.
+type Velocity = Macroscopic Vec3
 
 
--- | Calculate velocity for cell with particles.
-sampleVelocity :: Cell -> Velocity
-sampleVelocity (Cell point particles) =
-    Velocity point (averageVelocity particles)
+type Sampler a = MacroCell -> Maybe a
 
 
--- | Calculate average velocity for a list of particles.
-averageVelocity :: [Particle] -> Vec3
-averageVelocity particles =
-    let
-        weight = 1 / fromIntegral (length particles)
-    in
-    (foldl' (<+>) (Vec3 0 0 0) (map velocity particles)) .^ weight
+type MacroClassifier = Int -> Point
+
+
+sampleVelocity :: Sampler Velocity
+sampleVelocity (MacroCell pt ens) =
+    case VU.null ens of
+      True -> Nothing
+      False -> Just $ (pt, VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens)
+
+
+-- samplingSort :: Ensemble -> V.Vector Cell
+-- samplingSort ens = 
+
+
+-- sampleCells :: Monad m => Ensemble -> Sampler -> m (

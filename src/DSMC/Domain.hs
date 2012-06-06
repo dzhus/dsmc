@@ -11,7 +11,9 @@ for most of operations. We use functions specifically typed for 'ST'.
 -}
 
 module DSMC.Domain
-    ( Domain
+    ( Domain(..)
+    , getDimensions
+    , getCenter
     , makeDomain
     , clipToDomain
     , openBoundaryInjection

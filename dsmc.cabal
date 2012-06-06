@@ -21,7 +21,7 @@ library
     DSMC.Domain,
     DSMC.Traceables,
     DSMC.Types,
---    DSMC.Macroscopic,
+    DSMC.Macroscopic,
     DSMC.Particles,
     DSMC.Util.Constants,
     DSMC.Util.Vector
