@@ -53,7 +53,7 @@ advance !dt !b ens =
       R.computeP $ reflected
 
 
--- | Classify points into cells of regular grid with given spatial
+-- | Classify particles into cells of regular grid with given spatial
 -- steps.
 makeRegularClassifier :: Domain
                       -> Double
