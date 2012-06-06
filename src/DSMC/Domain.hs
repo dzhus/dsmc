@@ -131,10 +131,10 @@ pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
 initialParticles :: Seed
                  -> Domain
                  -> Flow
-                 -> (Ensemble, Seed)
-initialParticles g d flow = (fromUnboxed1 res, s)
+                 -> Ensemble
+initialParticles g d flow = fromUnboxed1 res
                             where
-                              !(res, s) = pureSpawnParticles d flow g
+                              !(res, _) = pureSpawnParticles d flow g
 
 
 -- | Sample new particles in 6 interface domains along each side of
