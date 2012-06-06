@@ -53,8 +53,8 @@ classifyAll cellCount classify ens = do
   classes <- VU.forM ens (\p -> do
       let cellNumber = classify p
       -- Increment cell particle count
-      count <- VUM.read lengths cellNumber
-      VUM.write lengths cellNumber (count + 1)
+      count <- VUM.unsafeRead lengths cellNumber
+      VUM.unsafeWrite lengths cellNumber (count + 1)
       return $ (cellNumber, count))
 
   lengths' <- VU.unsafeFreeze lengths
@@ -85,9 +85,9 @@ sortParticles cellCount classify ens = do
 
   -- Classify particles stored in unboxed vector into cellCount.
   VU.zipWithM_ (\p (c, i) -> do
-                  cell <- VM.read cells c
-                  VUM.write cell i p
-                  VM.write cells c cell) ens' classes
+                  cell <- VM.unsafeRead cells c
+                  VUM.unsafeWrite cell i p
+                  VM.unsafeWrite cells c cell) ens' classes
 
   -- Freeze top-level mutable
   V.generateM cellCount (\j -> do
