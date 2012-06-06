@@ -2,6 +2,9 @@
 
 Particle tracking for spatial grid for DSMC.
 
+This module is used to sort particles into ordered vector of cells for
+collision step or macroscopic parameter sampling.
+
 -}
 
 module DSMC.Cells
