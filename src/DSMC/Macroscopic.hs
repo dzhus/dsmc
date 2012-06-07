@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 {-|
 
 Macroscopic parameters calculation.
@@ -52,10 +54,11 @@ type CellSampler a = MacroCell -> Maybe a
 
 -- | Sample velocity inside a cell.
 sampleVelocity :: CellSampler Velocity
-sampleVelocity (pt, ens) =
+sampleVelocity !(pt, ens) =
     case VU.null ens of
       True -> Nothing
-      False -> Just $ (pt, VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens)
+      False -> Just $ (pt, (VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens) .^ 
+                             (1 / fromIntegral (VU.length ens)))
 
 
 -- | Sort particles for further sampling.
