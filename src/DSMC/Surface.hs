@@ -49,16 +49,13 @@ makeCll t alphanor sigmatan =
                 !urm = ui * sqrt (1 - alphanor) / f
                 !vrm = vi * (1 - sigmatan)
             in do
-              !v1 <- uniform g
+              !angle <- uniformR (0.0, pi * 2) g
+              !angle' <- uniformR (0.0, pi * 2) g
               !v2 <- uniform g
-              !v1' <- uniform g
               !v2' <- uniform g
-              let !angle = 2 * pi * v1
-                  !r = sqrt (- (alphatan * log v2))
+              let !r = sqrt (- (alphatan * log v2))
                   !vr = r * (cos angle) * f + vrm
                   !wr = r * (sin angle) * f
-
-                  !angle' = 2 * pi * v1'
                   !r' = sqrt (- (alphanor * log v2'))
                   !ur = sqrt (urm * urm + 2 * r' * urm * (cos angle') + r' * r') * f
 
