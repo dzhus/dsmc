@@ -7,7 +7,7 @@ Gas-surface interactions.
 -}
 
 module DSMC.Surface
-    ( Collider
+    ( Reflector
     , makeCll
     , makeSpecular
     )
@@ -24,22 +24,22 @@ import DSMC.Util.Vector
 -- | A function which takes PRNG state, molecular velocity, surface
 -- normal and samples post-collisional wrt to impregnable wall
 -- boundary condition.
-type Collider s = GenST s -> Vec3 -> Vec3 -> ST s Vec3
+type Reflector s = GenST s -> Vec3 -> Vec3 -> ST s Vec3
 
 
--- | Make a collider for Cercignani-Lampis model.
+-- | Make a reflector for Cercignani-Lampis model.
 makeCll :: Double 
         -- ^ Body temperature.
         -> Double
         -- ^ Kinetic energy accomodation for normal velocity component.
         -> Double 
         -- ^ Accomodation for tangential momentum.
-        -> Collider s
+        -> Reflector s
 makeCll t alphanor sigmatan =
     let
         f = sqrt (2 * t * unigas)
         alphatan = sigmatan * (2 - sigmatan)
-        cll :: Collider s
+        cll :: Reflector s
         cll !g !n !vel =
             let
                 !e1 = normalize $ n >< vel
@@ -65,6 +65,6 @@ makeCll t alphanor sigmatan =
       cll
 
 
--- | Make the specular reflection collider.
-makeSpecular :: Collider s
+-- | Make the specular reflection reflector.
+makeSpecular :: Reflector s
 makeSpecular _ !v !n = return $! v <-> (n .^ (v .* n) .^ 2)
