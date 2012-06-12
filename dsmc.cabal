@@ -19,6 +19,7 @@ library
     DSMC,
     DSMC.Cells,
     DSMC.Domain,
+    DSMC.Surface,
     DSMC.Traceables,
     DSMC.Types,
     DSMC.Macroscopic,
