@@ -77,14 +77,14 @@ type DomainSeed = (Seed, Seed, Seed, Seed, Seed, Seed)
 -- | Calculate width, length and height of a domain, which are
 -- dimensions measured by x, y and z axes, respectively.
 getDimensions :: Domain -> (Double, Double, Double)
-getDimensions !(Domain xmin xmax ymin ymax zmin zmax) =
+getDimensions (Domain xmin xmax ymin ymax zmin zmax) =
     (xmax - xmin, ymax - ymin, zmax - zmin)
 {-# INLINE getDimensions #-}
 
 
 -- | Calculate geometric center of a domain.
 getCenter :: Domain -> Point
-getCenter !(Domain xmin xmax ymin ymax zmin zmax) =
+getCenter (Domain xmin xmax ymin ymax zmin zmax) =
     (xmin + (xmax - xmin) / 2, ymin + (ymax - ymin) / 2, zmin + (zmax - zmin) / 2)
 {-# INLINE getCenter #-}
 
@@ -134,7 +134,7 @@ initialParticles :: Seed
                  -> Ensemble
 initialParticles g d flow = fromUnboxed1 res
                             where
-                              !(res, _) = pureSpawnParticles d flow g
+                              (res, _) = pureSpawnParticles d flow g
 
 
 -- | Sample new particles in 6 interface domains along each side of
