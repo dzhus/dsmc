@@ -84,7 +84,7 @@ makeReflector (Diffuse t m) =
         s = sqrt $ boltzmann * t / m
         beta = 1 / (s * (sqrt 2))
         diffuse :: Reflector s
-        diffuse g n vel = 
+        diffuse g n vel =
             let
                 e1 = normalize $ n >< vel
                 e2 = normalize $ n >< e1
