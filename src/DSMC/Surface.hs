@@ -22,6 +22,7 @@ import System.Random.MWC.Distributions (normal)
 import DSMC.Util.Constants
 import DSMC.Util.Vector
 
+
 -- | A function which takes PRNG state, molecular velocity, surface
 -- normal and samples post-collisional wrt to impregnable wall
 -- boundary condition.
@@ -44,6 +45,7 @@ data Surface = CLL { bodyTemperature :: !Double
                        } |
                Mirror
                -- ^ Surface with specular reflection.
+
 
 makeReflector :: Surface -> Reflector s
 makeReflector (CLL t alphanor sigmatan) =
