@@ -102,6 +102,7 @@ step gseeds dseeds domain body flow dt ex ens =
       return $! (e'', gseeds', dseeds')
 
 
+-- | Perform DSMC simulation.
 simulate :: PrimMonad m =>
             Domain
          -> Body
@@ -110,6 +111,8 @@ simulate :: PrimMonad m =>
          -> Time
          -> Double
          -> Int
+         -- ^ Split Lagrangian step into that many independent
+         -- parallel processes.
          -> m Ensemble
 simulate domain body flow dt tmax ex gsplit =
     let
