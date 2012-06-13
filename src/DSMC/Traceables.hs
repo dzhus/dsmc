@@ -214,7 +214,8 @@ trace !(Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
 
 
 -- | If particle has hit the body during last time step, calculate the
--- corresponding 'HitPoint'.
+-- corresponding 'HitPoint'. Note that time at which hit occured will
+-- be negative.
 hitPoint :: Time -> Body -> Particle -> Maybe HitPoint
 hitPoint !dt !b !p =
     let
