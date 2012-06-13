@@ -6,6 +6,7 @@
 module DSMC.Util
     ( solveq
     , SquareRoots
+    , parMapST
     , purifyRandomST
     , splitIn
     )
@@ -15,9 +16,12 @@ where
 import Prelude hiding (Just, Nothing, Maybe, fst)
 
 import Control.Monad.ST
+import Control.Parallel.Strategies
 
 import Data.Strict.Maybe
 import Data.Strict.Tuple
+
+import qualified Data.Vector.Generic as VG
 
 import System.Random.MWC
 
