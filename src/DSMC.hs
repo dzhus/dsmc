@@ -9,71 +9,94 @@ module DSMC
     ( advance
     , step
     , simulate
+    , regPrintVels
     )
 
 where
 
+import Control.Monad
 import Control.Monad.Primitive (PrimMonad)
 
 import qualified Data.Array.Repa as R
 
 import Data.Strict.Maybe as S
 
+import qualified Data.Vector.Unboxed as VU
+
 import System.Random.MWC
 
 import DSMC.Cells
 import DSMC.Domain
+import DSMC.Macroscopic
 import DSMC.Particles
+import DSMC.Surface
 import DSMC.Traceables
 import DSMC.Types
-import DSMC.Util.Vector
+import DSMC.Util
+
+import Control.Monad.ST
 
 
--- | Update particle position and velocity after specular hit given a
--- normalized normal vector of surface in hit point and time since hit
--- (not positive)
-reflectSpecular :: Particle -> Time -> Vec3 -> Particle
-reflectSpecular !(pos, v) !t !n =
-    move (-1 * t) (pos, v <-> (n .^ (v .* n) .^ 2))
-
-
--- | Advance particles in space without intermolecular collisions, but
--- reflect particles which have collided with body.
-advance :: Monad m =>
-           Time
+-- | Sequential action to move particles and consider particle-body
+-- collisions.
+reflect :: GenST s
         -> Body
+        -> Time
+        -> Reflector s
+        -> VU.Vector Particle
+        -> ST s (VU.Vector Particle)
+reflect g body dt reflector ens = do
+  VU.forM ens $ \(!pcl) -> do
+    -- Particle after collisionless motion
+    let !movedPcl = move dt pcl
+    case (hitPoint dt body movedPcl) of
+      S.Just (HitPoint t (S.Just n)) ->
+          let
+              -- Position and velocity at hit point
+              (pos', v) = move (-1 * t) pcl
+          in do
+            -- Sample velocity for reflected particle
+            vR <- reflector g n v
+            return $! (pos', vR)
+      _ -> return $ pcl
+
+
+type GlobalSeeds = [Seed]
+
+
+advance :: GlobalSeeds
+        -> Body
+        -> Time
+        -> Surface
         -> Ensemble
-        -> m Ensemble
-advance !dt !b ens =
+        -> (Ensemble, GlobalSeeds)
+advance gs b dt surf ens =
     let
-        moved = R.map (move dt) ens
-        maybeReflect = (\(!p) ->
-                            case (hitPoint dt b p) of
-                              S.Just (HitPoint t (S.Just n)) ->
-                                  reflectSpecular p t n
-                              _ -> p)
-        {-# INLINE maybeReflect #-}
-        -- Reflect those particles which are not
-        reflected = R.map maybeReflect moved
+        vs :: [VU.Vector Particle]
+        !vs = splitIn (R.toUnboxed ens) (length gs)
+        v' :: [(VU.Vector Particle, Seed)]
+        !v' = parMapST (\g e -> reflect g b dt (makeReflector surf) e) $ zip vs gs
     in
-      R.computeP $ reflected
+      (fromUnboxed1 $ VU.concat $ map fst v', map snd v')
 
 
 -- Monadic because of Repa's parallel computeP.
 step :: Monad m =>
-        DomainSeed
+        GlobalSeeds
+     -> DomainSeed
      -> Domain
      -> Body
      -> Flow
      -> Time
      -> Double
      -> Ensemble
-     -> m (Ensemble, DomainSeed)
-step seeds domain body flow dt ex ens =
+     -> m (Ensemble, GlobalSeeds, DomainSeed)
+step gseeds dseeds domain body flow dt ex ens =
     do
-      let !(e, seeds') = openBoundaryInjection seeds domain ex flow ens
-      e' <- advance dt body e >>= clipToDomain domain
-      return (e', seeds')
+      let !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+          !(e', gseeds') = advance gseeds body dt Mirror e
+      e'' <- clipToDomain domain e'
+      return (e'', gseeds', dseeds')
 
 
 simulate :: PrimMonad m =>
@@ -83,22 +106,32 @@ simulate :: PrimMonad m =>
          -> Time
          -> Time
          -> Double
+         -> Int
          -> m Ensemble
-simulate domain body flow dt tmax ex =
+simulate domain body flow dt tmax ex gsplit =
     let
         -- Helper which runs simulation until current time exceeds
         -- limit
-        sim1 seeds tcur ens =
+        sim1 gseeds dseeds tcur ens =
             if tcur > tmax then return ens
                else do
-                 (ens', seeds') <- step seeds domain body flow dt ex ens
-                 sim1 seeds' (tcur + dt) ens'
+                 (ens', gseeds', dseeds') <- step gseeds dseeds domain body flow dt ex ens
+                 sim1 gseeds' dseeds' (tcur + dt) ens'
     in do
-      s <-  create >>= save
+      gs <- replicateM gsplit $ create >>= save
       s1 <- create >>= save
       s2 <- create >>= save
       s3 <- create >>= save
       s4 <- create >>= save
       s5 <- create >>= save
       s6 <- create >>= save
-      sim1 (s1, s2, s3, s4, s5, s6) 0 $ initialParticles s domain flow
+      sim1 gs (s1, s2, s3, s4, s5, s6) 0 emptyEnsemble
+
+regPrintVels :: RegularSubdivision -> Ensemble -> IO ()
+regPrintVels subdiv ens =
+    let 
+        !(cells, cls) = makeRegularClassifier subdiv
+        !indefy = makeRegularIndexer subdiv
+        mcells = samplingSort cells cls indefy ens
+    in do
+      sampleVels mcells >>= printVels
