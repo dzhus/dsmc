@@ -12,7 +12,7 @@ cabal-version:       >=1.8
 tested-with:         GHC == 7.4.1
 
 library
-  ghc-options: -Wall -O2 -funbox-strict-fields
+  ghc-options: -Wall -O2 -funbox-strict-fields -fno-state-hack
   hs-source-dirs: src
 
   exposed-modules:
