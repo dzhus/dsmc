@@ -36,7 +36,6 @@ import DSMC.Util
 
 import Control.Monad.ST
 
-
 -- | Sequential action to move particles and consider particle-body
 -- collisions.
 reflect :: GenST s
@@ -46,19 +45,20 @@ reflect :: GenST s
         -> VU.Vector Particle
         -> ST s (VU.Vector Particle)
 reflect g body dt reflector ens = do
-  VU.forM ens $ \(!pcl) -> do
+  VU.forM ens $ \pcl -> do
     -- Particle after collisionless motion
-    let !movedPcl = move dt pcl
+    let movedPcl = move dt pcl
     case (hitPoint dt body movedPcl) of
-      S.Just (HitPoint t (S.Just n)) ->
+      S.Just (HitPoint th (S.Just n)) ->
           let
               -- Position and velocity at hit point
-              (pos', v) = move (-1 * t) pcl
+              (pos', v) = move th pcl
           in do
             -- Sample velocity for reflected particle
             vR <- reflector g n v
-            return $! (pos', vR)
-      _ -> return $ pcl
+            -- Move particle away from surface with new velocity
+            return $ move (-th) (pos', vR)
+      _ -> return $ movedPcl
 
 
 type GlobalSeeds = [Seed]
@@ -74,8 +74,9 @@ advance gs b dt surf ens =
     let
         vs :: [VU.Vector Particle]
         !vs = splitIn (R.toUnboxed ens) (length gs)
+        reflector = makeReflector surf
         v' :: [(VU.Vector Particle, Seed)]
-        !v' = parMapST (\g e -> reflect g b dt (makeReflector surf) e) $ zip vs gs
+        !v' = parMapST (\g e -> reflect g b dt reflector e) $ zip vs gs
     in
       (fromUnboxed1 $ VU.concat $ map fst v', map snd v')
 
@@ -94,9 +95,9 @@ step :: Monad m =>
 step gseeds dseeds domain body flow dt ex ens =
     do
       let !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
-          !(e', gseeds') = advance gseeds body dt Mirror e
-      e'' <- clipToDomain domain e'
-      return (e'', gseeds', dseeds')
+          !(e', gseeds') = advance gseeds body dt (CLL 500 0.1 0.3) e
+      !e'' <- clipToDomain domain e'
+      return $! (e'', gseeds', dseeds')
 
 
 simulate :: PrimMonad m =>
