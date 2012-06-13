@@ -73,6 +73,8 @@ advance :: GlobalSeeds
 advance gs b dt surf ens =
     let
         vs :: [VU.Vector Particle]
+        -- | Since 'reflect' is sequential, we split ensemble into N
+        -- slices and process them in parallel.
         !vs = splitIn (R.toUnboxed ens) (length gs)
         reflector = makeReflector surf
         v' :: [(VU.Vector Particle, Seed)]
