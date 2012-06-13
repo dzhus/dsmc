@@ -7,6 +7,7 @@ module DSMC.Util
     ( solveq
     , SquareRoots
     , purifyRandomST
+    , splitIn
     )
 
 where
@@ -55,3 +56,19 @@ purifyRandomST f seed = runST $ do
                           g' <- save g
                           return (r, g')
 {-# INLINE purifyRandomST #-}
+
+
+-- | Split vector into list of n subvectors.
+splitIn :: VG.Vector v a => v a -> Int -> [v a]
+splitIn ens n =
+    let
+        partSize = (VG.length ens) `div` n
+        splitIn1 0 acc _    = acc
+        splitIn1 1 acc rest = (rest:acc)
+        splitIn1 m acc rest =
+            let
+                (v1, v2) = VG.splitAt partSize rest
+            in
+              splitIn1 (m - 1) (v1:acc) v2
+    in
+      splitIn1 n [] ens
