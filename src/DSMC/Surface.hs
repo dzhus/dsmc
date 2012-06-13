@@ -8,8 +8,8 @@ Gas-surface interactions.
 
 module DSMC.Surface
     ( Reflector
-    , makeCll
-    , makeSpecular
+    , Surface(..)
+    , makeReflector
     )
 
 where
@@ -27,15 +27,18 @@ import DSMC.Util.Vector
 type Reflector s = GenST s -> Vec3 -> Vec3 -> ST s Vec3
 
 
--- | Make a reflector for Cercignani-Lampis model.
-makeCll :: Double 
-        -- ^ Body temperature.
-        -> Double
-        -- ^ Kinetic energy accomodation for normal velocity component.
-        -> Double 
-        -- ^ Accomodation for tangential momentum.
-        -> Reflector s
-makeCll t alphanor sigmatan =
+data Surface = CLL { bodyTemperature :: !Double
+                   , alpha :: !Double
+                   -- ^ Kinetic energy accomodation for normal velocity component.
+                   , sigma :: !Double
+                   -- ^ Accomodation for tangential momentum.
+                   } |
+               -- ^ Cercignani-Lampis-Lord model.
+               Mirror
+               -- ^ Surface with specular reflection.
+
+makeReflector :: Surface -> Reflector s
+makeReflector (CLL t alphanor sigmatan) =
     let
         f = sqrt (2 * t * unigas)
         alphatan = sigmatan * (2 - sigmatan)
@@ -63,8 +66,4 @@ makeCll t alphanor sigmatan =
         {-# INLINE cll #-}
     in
       cll
-
-
--- | Make the specular reflection reflector.
-makeSpecular :: Reflector s
-makeSpecular _ !v !n = return $! v <-> (n .^ (v .* n) .^ 2)
+makeReflector Mirror =  \_ !v !n -> return $! v <-> (n .^ (v .* n) .^ 2)
