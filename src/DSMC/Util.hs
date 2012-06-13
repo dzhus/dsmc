@@ -58,6 +58,15 @@ purifyRandomST f seed = runST $ do
 {-# INLINE purifyRandomST #-}
 
 
+-- | 'parMap' with 'rpar' over list of data and initial seeds using ST
+-- action taking single PRNG state, producing list of results and used
+-- seeds.
+parMapST :: (forall s.GenST s -> a -> ST s a) -> [(a, Seed)] -> [(a, Seed)]
+parMapST f d =
+    parMap rpar (\(p, seed) -> purifyRandomST (\gen -> f gen p) seed) d
+{-# INLINE parMapST #-}
+
+
 -- | Split vector into list of n subvectors.
 splitIn :: VG.Vector v a => v a -> Int -> [v a]
 splitIn ens n =
@@ -72,3 +81,4 @@ splitIn ens n =
               splitIn1 (m - 1) (v1:acc) v2
     in
       splitIn1 n [] ens
+{-# INLINE splitIn #-}
