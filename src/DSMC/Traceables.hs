@@ -17,11 +17,12 @@ module DSMC.Traceables
     -- ** Compositions
     , intersect
     , unite
+    , complement
     )
 
 where
 
-import Prelude hiding (Just, Nothing, Maybe, fst, reverse)
+import Prelude hiding (Just, Nothing, Maybe, fst, snd, reverse)
 
 import Data.Functor
 import Data.Strict.Maybe
@@ -104,6 +105,14 @@ infinityN :: Double
 infinityN = -infinityP
 
 
+hitN :: HitPoint
+hitN = (HitPoint infinityN Nothing)
+
+
+hitP :: HitPoint
+hitP = (HitPoint infinityP Nothing)
+
+
 -- | CSG body is a recursive composition of primitive objects or other
 -- bodies. We require that prior to tracing particles on a body it's
 -- converted to sum-of-products form.
@@ -117,30 +126,42 @@ data Body = Plane !Vec3 !Double
           -- ^ Union of bodies.
           | Intersection !Body !Body
           -- ^ Intersection of bodies.
+          | Complement !Body
             deriving Show
+
 
 -- | Half-space defined by plane with outward normal and distance from
 -- origin.
 plane :: Vec3 -> Double -> Body
 plane n d = Plane (normalize n) d
 
+
 -- | Sphere defined by center point and radius.
 sphere :: Vec3 -> Double -> Body
 sphere o r = Sphere o r
+
 
 -- | Infinite cylinder defined by vector collinear to axis, point on
 -- axis and radius.
 cylinder :: Vec3 -> Point -> Double -> Body
 cylinder a o r = Cylinder (normalize a) o r
 
+
 intersect :: Body -> Body -> Body
-intersect b1 b2 = Intersection b1 b2
+intersect !b1 !b2 = Intersection b1 b2
+
 
 unite :: Body -> Body -> Body
-unite b1 b2 = Union b1 b2
+unite !b1 !b2 = Union b1 b2
+
+
+complement :: Body -> Body
+complement !b = Complement b
+
 
 -- | Trace a particle on a body.
 trace :: Body -> Particle -> Trace
+{-# INLINE trace #-}
 
 trace !(Plane n d) !(pos, v) =
     let
@@ -224,8 +245,11 @@ trace !(Union b1 b2) !p =
         where
           tr1 = trace b1 p
           tr2 = trace b2 p
-{-# INLINE trace #-}
 
+trace !(Complement b) !p =
+    complementTraces tr
+        where
+          tr = trace b p
 
 uniteTraces :: Trace -> Trace -> Trace
 uniteTraces u [] = u
@@ -233,7 +257,7 @@ uniteTraces u (v:t2) =
       uniteTraces (unite1 u v) t2
       where
         merge :: HitSegment -> HitSegment -> HitSegment
-        merge (a1 :!: b1) (a2 :!: b2) = (min a1 a2) :!: (max b1 b2)
+        merge !(a1 :!: b1) !(a2 :!: b2) = (min a1 a2) :!: (max b1 b2)
         {-# INLINE merge #-}
         unite1 :: Trace -> HitSegment -> Trace
         unite1 [] hs = [hs]
@@ -266,6 +290,33 @@ intersectTraces tr1 tr2 =
                           True -> intersectTraces tr1 tr2'
                           False -> (overlap hs1 hs2):(intersectTraces tr1' tr2)
 {-# INLINE intersectTraces #-}
+
+
+-- | Complement to trace (normals flipped) in @R^3@.
+complementTraces :: Trace -> Trace
+complementTraces ((sp@(HitPoint ts _) :!: ep):xs) =
+    start ++ (complementTraces' ep xs)
+    where
+      flipNormals :: HitSegment -> HitSegment
+      flipNormals !((HitPoint t1 n1) :!: (HitPoint t2 n2)) =
+          (HitPoint t1 (reverse <$> n1)) :!: (HitPoint t2 (reverse <$> n2))
+      {-# INLINE flipNormals #-}
+      -- Start from infinity if first hitpoint is finite
+      start = if (isInfinite ts)
+              then []
+              else [flipNormals $ hitN :!: sp]
+      complementTraces' :: HitPoint -> Trace -> Trace
+      complementTraces' c ((a :!: b):tr) =
+          -- Bridge between last point of previous segment and first
+          -- point of the next one.
+          (flipNormals (c :!: a)):(complementTraces' b tr)
+      complementTraces' a@(HitPoint t _) [] =
+          -- End in infinity if last hitpoint is finite
+          if (isInfinite t)
+          then []
+          else [flipNormals (a :!: hitP)]
+complementTraces [] = [hitN :!: hitP]
+{-# INLINE complementTraces #-}
 
 
 -- | If particle has hit the body during last time step, calculate the
