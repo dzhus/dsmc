@@ -77,10 +77,12 @@ import DSMC.Util.Vector
 -- >                                  /
 -- >                                 / - surface of halfspace
 --
--- Using strict Maybe and tuple performs better: 100 traces for 350K
+-- Using strict tuple performs better: 100 traces for 350K
 -- particles perform roughly 7s against 8s with common datatypes.
-type Trace = Maybe (Pair HitPoint HitPoint)
+type Trace = [HitSegment]
 
+-- | A segment on time line when particle is inside the body.
+type HitSegment = (Pair HitPoint HitPoint)
 
 -- | Time when particle hits the surface, along with normal at hit
 -- point. If hit is in infinity, then normal is Nothing.
@@ -116,9 +118,8 @@ data Body = Plane !Vec3 !Double
           -- ^ Intersection of bodies.
             deriving Show
 
-
--- | Half-space defined by plane with outward normal and
--- distance from origin.
+-- | Half-space defined by plane with outward normal and distance from
+-- origin.
 plane :: Vec3 -> Double -> Body
 plane n d = Plane (normalize n) d
 
@@ -143,14 +144,14 @@ trace !(Plane n d) !(pos, v) =
     in
       -- Check if ray is parallel to plane
       if f == 0
-      then Nothing
+      then []
       else
           let
               !t = (pos .* n - d) / f
           in
             if f > 0
-            then Just ((HitPoint t (Just n)) :!: (HitPoint infinityP Nothing))
-            else Just ((HitPoint infinityN Nothing) :!: (HitPoint t (Just n)))
+            then [(HitPoint t (Just n)) :!: (HitPoint infinityP Nothing)]
+            else [(HitPoint infinityN Nothing) :!: (HitPoint t (Just n))]
 
 trace !(Sphere c r) !(pos, v) =
       let
@@ -159,10 +160,10 @@ trace !(Sphere c r) !(pos, v) =
           normal !u = normalize (u <-> c)
       in
         case roots of
-          Nothing -> Nothing
-          Just (t1 :!: t2) -> Just $
-                           (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
-                            HitPoint t2 (Just $ normal $ moveBy pos v t2))
+          Nothing -> []
+          Just (t1 :!: t2) ->
+              [HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
+               HitPoint t2 (Just $ normal $ moveBy pos v t2)]
 
 trace !(Cylinder n c r) !(pos, v) =
     let
@@ -174,11 +175,11 @@ trace !(Cylinder n c r) !(pos, v) =
             where h = u <-> c
     in
       case roots of
-        Nothing -> Nothing
-        Just (t1 :!: t2) -> Just $
-                            (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
-                             HitPoint t2 (Just $ normal $ moveBy pos v t2))
-
+        Nothing -> []
+        Just (t1 :!: t2) -> 
+            [HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
+                      HitPoint t2 (Just $ normal $ moveBy pos v t2)]
+        
 trace !(Cone n c a) !(pos, v) =
     let
       nn = normalize n
@@ -200,15 +201,13 @@ trace !(Cone n c a) !(pos, v) =
                 ta = tan $! a
     in
       case roots of
-        Nothing -> Nothing
+        Nothing -> []
         Just (t1 :!: t2) -> if (v .* nn) / (norm v) < a' then
-                                Just $
-                                (HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
-                                 HitPoint t2 (Just $ normal $ moveBy pos v t2))
+                                [HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
+                                 HitPoint t2 (Just $ normal $ moveBy pos v t2)]
                             else
-                                Just $
-                                (HitPoint t2 (Just $ normal $ moveBy pos v t2) :!:
-                                 HitPoint infinityP Nothing)
+                                [HitPoint t2 (Just $ normal $ moveBy pos v t2) :!:
+                                 HitPoint infinityP Nothing]
 
 trace !(Intersection b1 b2) !p =
     intersectTraces tr1 tr2
@@ -219,19 +218,26 @@ trace !(Intersection b1 b2) !p =
 trace !(Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
 
 
--- | Intersect two traces.
 intersectTraces :: Trace -> Trace -> Trace
 intersectTraces tr1 tr2 =
-    -- Lazy arguments significantly improve the performance.
-    case tr1 of
-      Nothing -> Nothing
-      Just (x :!: y) ->
-          case tr2 of
-            Nothing -> Nothing
-            Just (u :!: v) ->
-                case (y > u && x < v) of
-                  True -> Just $ max x u :!: min y v
-                  False -> Nothing
+    let
+        -- Overlap two overlapping segments
+        overlap :: HitSegment -> HitSegment -> HitSegment
+        overlap !(a1 :!: b1) !(a2 :!: b2) = (max a1 a2) :!: (min b1 b2)
+        {-# INLINE overlap #-}
+    in
+      case tr2 of
+        [] -> []
+        (hs2@(a2 :!: b2):tr2') -> 
+            case tr1 of
+              [] -> []
+              (hs1@(a1 :!: b1):tr1') ->
+                  case (b1 < a2) of
+                    True -> (intersectTraces tr1' tr2)
+                    False -> 
+                        case (b2 < a1) of
+                          True -> intersectTraces tr1 tr2'
+                          False -> (overlap hs1 hs2):(intersectTraces tr1' tr2)
 {-# INLINE intersectTraces #-}
 
 
@@ -241,7 +247,9 @@ intersectTraces tr1 tr2 =
 hitPoint :: Time -> Body -> Particle -> Maybe HitPoint
 hitPoint !dt !b !p =
     let
-        lastHit = Just $ (HitPoint (-dt) Nothing :!: HitPoint 0 Nothing)
+        lastHit = [(HitPoint (-dt) Nothing) :!: (HitPoint 0 Nothing)]
     in
-      fst <$> (intersectTraces lastHit $ trace b p)
+      case (intersectTraces lastHit $ trace b p) of
+        [] -> Nothing
+        (hs:_) -> Just $ fst hs
 {-# INLINE hitPoint #-}
