@@ -180,10 +180,10 @@ trace !(Cylinder n c r) !(pos, v) =
     in
       case roots of
         Nothing -> []
-        Just (t1 :!: t2) -> 
+        Just (t1 :!: t2) ->
             [HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                       HitPoint t2 (Just $ normal $ moveBy pos v t2)]
-        
+
 trace !(Cone n c a) !(pos, v) =
     let
       nn = normalize n
@@ -219,13 +219,13 @@ trace !(Intersection b1 b2) !p =
           tr1 = trace b1 p
           tr2 = trace b2 p
 
-                
-trace !(Union b1 b2) !p = 
+trace !(Union b1 b2) !p =
     uniteTraces tr1 tr2
         where
           tr1 = trace b1 p
           tr2 = trace b2 p
 {-# INLINE trace #-}
+
 
 uniteTraces :: Trace -> Trace -> Trace
 uniteTraces u [] = u
@@ -255,13 +255,13 @@ intersectTraces tr1 tr2 =
     in
       case tr2 of
         [] -> []
-        (hs2@(a2 :!: b2):tr2') -> 
+        (hs2@(a2 :!: b2):tr2') ->
             case tr1 of
               [] -> []
               (hs1@(a1 :!: b1):tr1') ->
                   case (b1 < a2) of
                     True -> (intersectTraces tr1' tr2)
-                    False -> 
+                    False ->
                         case (b2 < a1) of
                           True -> intersectTraces tr1 tr2'
                           False -> (overlap hs1 hs2):(intersectTraces tr1' tr2)
