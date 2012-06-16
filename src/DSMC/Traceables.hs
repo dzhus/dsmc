@@ -110,7 +110,8 @@ intersectTraces !tr1 !tr2 =
 -- bodies. We require that prior to tracing particles on a body it's
 -- converted to sum-of-products form.
 data Body = Plane !Vec3 !Double
-          -- ^ Half-space defined by plane with outward normal.
+          -- ^ Half-space defined by plane with outward normal and
+          -- distance from origin.
           | Sphere !Vec3 !Double
           -- ^ Sphere defined by center point and radius.
           | Cylinder !Vec3 !Point !Double
@@ -139,7 +140,7 @@ trace !(Plane n d) !(pos, v) =
       then Nothing
       else
           let
-              t = (pos .* n + d) / f
+              t = (pos .* n - d) / f
           in
             if f > 0
             then Just ((HitPoint t (Just nn)) :!: (HitPoint infinityP Nothing))
