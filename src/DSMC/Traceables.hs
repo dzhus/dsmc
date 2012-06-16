@@ -170,7 +170,7 @@ trace !(Cylinder n c r) !(pos, v) =
         d = (pos <-> c) >< n
         e = v >< n
         roots = solveq (e .* e) (d .* e * 2) (d .* d - r2)
-        normal u = normalize $ h <-> (nn .^ (h .* nn))
+        normal u = normalize $ h <-> (n .^ (h .* n))
             where h = u <-> c
     in
       case roots of
