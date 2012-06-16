@@ -7,8 +7,15 @@ module DSMC.Traceables
     ( -- * Traces
       HitPoint(..)
     , hitPoint
+    , trace
     -- * Traceable bodies
-    , Body(..)
+    , Body
+    -- ** Primitives
+    , plane
+    , sphere
+    , cylinder
+    -- ** Compositions
+    , intersect
     )
 
 where
@@ -110,13 +117,8 @@ intersectTraces !tr1 !tr2 =
 -- bodies. We require that prior to tracing particles on a body it's
 -- converted to sum-of-products form.
 data Body = Plane !Vec3 !Double
-          -- ^ Half-space defined by plane with outward normal and
-          -- distance from origin.
           | Sphere !Vec3 !Double
-          -- ^ Sphere defined by center point and radius.
           | Cylinder !Vec3 !Point !Double
-          -- ^ Infinite cylinder defined by vector collinear to axis, point on
-          -- axis and radius.
           | Cone !Vec3 !Point !Double
           -- | Cone given by axis direction, vertex and angle between
           -- axis and outer edge (in radians).
@@ -127,30 +129,46 @@ data Body = Plane !Vec3 !Double
             deriving Show
 
 
+-- | Half-space defined by plane with outward normal and
+-- distance from origin.
+plane :: Vec3 -> Double -> Body
+plane n d = Plane (normalize n) d
+
+-- | Sphere defined by center point and radius.
+sphere :: Vec3 -> Double -> Body
+sphere o r = Sphere o r
+
+-- | Infinite cylinder defined by vector collinear to axis, point on
+-- axis and radius.
+cylinder :: Vec3 -> Point -> Double -> Body
+cylinder a o r = Cylinder (normalize a) o r
+
+intersect :: Body -> Body -> Body
+intersect b1 b2 = Intersection b1 b2
+
 -- | Trace a particle on a body.
 trace :: Body -> Particle -> Trace
 
 trace !(Plane n d) !(pos, v) =
     let
-        nn = normalize n
-        f = -(n .* v)
+        !f = -(n .* v)
     in
       -- Check if ray is parallel to plane
       if f == 0
       then Nothing
       else
           let
-              t = (pos .* n - d) / f
+              !t = (pos .* n - d) / f
           in
             if f > 0
-            then Just ((HitPoint t (Just nn)) :!: (HitPoint infinityP Nothing))
-            else Just ((HitPoint infinityN Nothing) :!: (HitPoint t (Just nn)))
+            then Just ((HitPoint t (Just n)) :!: (HitPoint infinityP Nothing))
+            else Just ((HitPoint infinityN Nothing) :!: (HitPoint t (Just n)))
 
 trace !(Sphere c r) !(pos, v) =
       let
-          d = pos <-> c
-          roots = solveq (v .* v) (v .* d * 2) (d .* d - r * r)
-          normal u = normalize (u <-> c)
+          !d = pos <-> c
+          !roots = solveq (v .* v) (v .* d * 2) (d .* d - r * r)
+          normal !u = normalize (u <-> c)
       in
         case roots of
           Nothing -> Nothing
