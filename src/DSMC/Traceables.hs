@@ -16,6 +16,7 @@ module DSMC.Traceables
     , cylinder
     -- ** Compositions
     , intersect
+    , unite
     )
 
 where
@@ -135,6 +136,9 @@ cylinder a o r = Cylinder (normalize a) o r
 intersect :: Body -> Body -> Body
 intersect b1 b2 = Intersection b1 b2
 
+unite :: Body -> Body -> Body
+unite b1 b2 = Union b1 b2
+
 -- | Trace a particle on a body.
 trace :: Body -> Particle -> Trace
 
@@ -215,7 +219,30 @@ trace !(Intersection b1 b2) !p =
           tr1 = trace b1 p
           tr2 = trace b2 p
 
-trace !(Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
+                
+trace !(Union b1 b2) !p = 
+    uniteTraces tr1 tr2
+        where
+          tr1 = trace b1 p
+          tr2 = trace b2 p
+{-# INLINE trace #-}
+
+uniteTraces :: Trace -> Trace -> Trace
+uniteTraces u [] = u
+uniteTraces u (v:t2) =
+      uniteTraces (unite1 u v) t2
+      where
+        merge :: HitSegment -> HitSegment -> HitSegment
+        merge (a1 :!: b1) (a2 :!: b2) = (min a1 a2) :!: (max b1 b2)
+        {-# INLINE merge #-}
+        unite1 :: Trace -> HitSegment -> Trace
+        unite1 [] hs = [hs]
+        unite1 t@(hs1@(a1 :!: b1):tr') hs2@(a2 :!: b2)
+            | b1 < a2 = hs1:(unite1 tr' hs2)
+            | a1 > b2 = hs2:t
+            | otherwise = unite1 tr' (merge hs1 hs2)
+        {-# INLINE unite1 #-}
+{-# INLINE uniteTraces #-}
 
 
 intersectTraces :: Trace -> Trace -> Trace
