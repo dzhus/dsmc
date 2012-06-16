@@ -76,6 +76,9 @@ import DSMC.Util.Vector
 -- >                                   /
 -- >                                  /
 -- >                                 / - surface of halfspace
+--
+-- Using strict Maybe and tuple performs better: 100 traces for 350K
+-- particles perform roughly 7s against 8s with common datatypes.
 type Trace = Maybe (Pair HitPoint HitPoint)
 
 
@@ -90,27 +93,12 @@ data HitPoint = HitPoint !Double (Maybe Vec3)
 
 -- | IEEE positive infinity.
 infinityP :: Double
-infinityP = (/) 1 $! 0
+infinityP = (/) 1 0
 
 
 -- | Negative infinity.
 infinityN :: Double
 infinityN = -infinityP
-
-
--- | Intersect two traces.
-intersectTraces :: Trace -> Trace -> Trace
-intersectTraces !tr1 !tr2 =
-    case tr1 of
-      Nothing -> Nothing
-      Just (x :!: y) ->
-          case tr2 of
-            Nothing -> Nothing
-            Just (u :!: v) ->
-                case (y > u && x < v) of
-                  True -> Just $ max x u :!: min y v
-                  False -> Nothing
-{-# INLINE intersectTraces #-}
 
 
 -- | CSG body is a recursive composition of primitive objects or other
@@ -179,7 +167,6 @@ trace !(Sphere c r) !(pos, v) =
 trace !(Cylinder n c r) !(pos, v) =
     let
         r2 = r * r
-        nn = normalize n
         d = (pos <-> c) >< n
         e = v >< n
         roots = solveq (e .* e) (d .* e * 2) (d .* d - r2)
@@ -230,6 +217,22 @@ trace !(Intersection b1 b2) !p =
           tr2 = trace b2 p
 
 trace !(Union _ _) _ = error "Can't trace union, perhaps you want 'hitPoint'"
+
+
+-- | Intersect two traces.
+intersectTraces :: Trace -> Trace -> Trace
+intersectTraces tr1 tr2 =
+    -- Lazy arguments significantly improve the performance.
+    case tr1 of
+      Nothing -> Nothing
+      Just (x :!: y) ->
+          case tr2 of
+            Nothing -> Nothing
+            Just (u :!: v) ->
+                case (y > u && x < v) of
+                  True -> Just $ max x u :!: min y v
+                  False -> Nothing
+{-# INLINE intersectTraces #-}
 
 
 -- | If particle has hit the body during last time step, calculate the
