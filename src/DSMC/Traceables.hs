@@ -14,6 +14,7 @@ module DSMC.Traceables
     , plane
     , sphere
     , cylinder
+    , cone
     -- ** Compositions
     , intersect
     , unite
@@ -114,11 +115,14 @@ hitP = (HitPoint infinityP Nothing)
 
 
 -- | CSG body is a recursive composition of primitive objects or other
--- bodies. We require that prior to tracing particles on a body it's
--- converted to sum-of-products form.
+-- bodies.
 data Body = Plane !Vec3 !Double
+          -- ^ Halfspace with normalized outward normal and distance
+          -- from origin.
           | Sphere !Vec3 !Double
           | Cylinder !Vec3 !Point !Double
+          -- ^ Cylinder with normalized axis vector, point on axis and
+          -- radius.
           | Cone !Vec3 !Point !Double
           -- | Cone given by axis direction, vertex and angle between
           -- axis and outer edge (in radians).
@@ -146,6 +150,8 @@ sphere o r = Sphere o r
 cylinder :: Vec3 -> Point -> Double -> Body
 cylinder a o r = Cylinder (normalize a) o r
 
+cone :: Vec3 -> Point -> Double -> Body
+cone a o h = Cone (normalize a) o h
 
 intersect :: Body -> Body -> Body
 intersect !b1 !b2 = Intersection b1 b2
@@ -227,12 +233,20 @@ trace !(Cone n c a) !(pos, v) =
     in
       case roots of
         Nothing -> []
-        Just (t1 :!: t2) -> if (v .* nn) / (norm v) < a' then
-                                [HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
-                                 HitPoint t2 (Just $ normal $ moveBy pos v t2)]
-                            else
-                                [HitPoint t2 (Just $ normal $ moveBy pos v t2) :!:
-                                 HitPoint infinityP Nothing]
+        Just (t1 :!: t2) ->
+            let
+                pos1 = moveBy pos v t1
+                pos2 = moveBy pos v t2
+                odelta = c .* n
+            in
+              case ((pos1 .* n + odelta) > 0, (pos1 .* n + odelta) > 0) of
+                (True, True) -> [HitPoint t1 (Just $ normal pos1) :!:
+                                 HitPoint t2 (Just $ normal pos2)]
+                (True, False) -> [HitPoint infinityN Nothing :!:
+                                  HitPoint t1 (Just $ normal pos1)]
+                (False, True) -> [HitPoint t2 (Just $ normal pos2) :!:
+                                  HitPoint infinityP Nothing]
+                (False, False) -> []
 
 trace !(Intersection b1 b2) !p =
     intersectTraces tr1 tr2
