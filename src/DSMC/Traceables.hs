@@ -237,9 +237,9 @@ trace !(Cone n c a) !(pos, v) =
             let
                 pos1 = moveBy pos v t1
                 pos2 = moveBy pos v t2
-                odelta = c .* n
+                odelta = n .* c
             in
-              case ((pos1 .* n + odelta) > 0, (pos1 .* n + odelta) > 0) of
+              case ((pos1 .* n - odelta) > 0, (pos1 .* n - odelta) > 0) of
                 (True, True) -> [HitPoint t1 (Just $ normal pos1) :!:
                                  HitPoint t2 (Just $ normal pos2)]
                 (True, False) -> [HitPoint infinityN Nothing :!:
