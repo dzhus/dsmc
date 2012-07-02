@@ -74,8 +74,8 @@
        перпендикулярна скорости, поэтому она никуда не отскакивает.
        При этом она может пролетать сквозь другие тела!
 
-*** TODO [0/2] Добавить тела
-    - [ ] конус
+*** TODO [1/2] Добавить тела
+    - [X] конус
     - [ ] парабола
 
 *** TODO Разобраться с normal для цилиндра
@@ -272,8 +272,9 @@
 ** TODO Typesafe cell indexing
    (Int -> Point), Classifier и размер сетки должны проверяться на
    уровне типов.
-** TODO Выполнять предварительную обработку тел
-   - [ ] force normalization for normal vectors
+** DONE Выполнять предварительную обработку тел
+   CLOSED: [2012-07-02 Пн. 15:12]
+   - [X] force normalization for normal vectors
 ** DONE Domain implementation
    CLOSED: [2012-06-05 Вт. 01:30]
    Use message-passing instead of pattern-matching?
