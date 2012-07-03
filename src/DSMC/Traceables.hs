@@ -123,9 +123,13 @@ data Body = Plane !Vec3 !Double
           | Cylinder !Vec3 !Point !Double
           -- ^ Cylinder with normalized axis vector, point on axis and
           -- radius.
-          | Cone !Vec3 !Point !Double
-          -- | Cone given by axis direction, vertex and angle between
-          -- axis and outer edge (in radians).
+          | Cone !Vec3 !Point !Double !Matrix !Double !Double
+          -- ^ Cone given by axis direction, vertex and angle h
+          -- between axis and outer edge (in radians).
+          --
+          -- Additionally transformation matrix $n * n - cos^2 h$,
+          -- angle tangent and odelta are stored for intersection
+          -- calculations.
           | Union !Body !Body
           -- ^ Union of bodies.
           | Intersection !Body !Body
@@ -150,8 +154,19 @@ sphere o r = Sphere o r
 cylinder :: Vec3 -> Point -> Double -> Body
 cylinder a o r = Cylinder (normalize a) o r
 
+-- | Right circular cone defined by outward axis vector, apex point and
+-- angle between generatrix and axis.
 cone :: Vec3 -> Point -> Double -> Body
-cone a o h = Cone (normalize a) o h
+cone a o h =
+    let
+        h' = cos $! h
+        n = normalize $ a .^ (-1)
+        gamma = diag (-h' * h')
+        m = addM (n `vxv` n) gamma
+        ta = tan $ h
+        odelta = n .* o
+    in
+      Cone n o h m ta odelta
 
 intersect :: Body -> Body -> Body
 intersect !b1 !b2 = Intersection b1 b2
@@ -211,25 +226,20 @@ trace !(Cylinder n c r) !(pos, v) =
             [HitPoint t1 (Just $ normal $ moveBy pos v t1) :!:
                       HitPoint t2 (Just $ normal $ moveBy pos v t2)]
 
-trace !(Cone n c a) !(pos, v) =
+trace !(Cone n c _ m ta odelta) !(pos, v) =
     let
-      nn = normalize n
-      a' = cos $! a
-      gamma = diag (-a' * a')
       delta = pos <-> c
-      m = addM (nn `vxv` nn) gamma
       c2 = dotM v     v     m
       c1 = dotM v     delta m
       c0 = dotM delta delta m
       roots = solveq c2 (2 * c1) c0
-      normal u = normalize $ nx .^ (1 / ta)  <-> ny .^ ta
+      normal !u = normalize $ nx .^ (1 / ta)  <-> ny .^ ta
           where h = u <-> c
                 -- Component of h parallel to cone axis
-                ny' = nn .^ (nn .* h)
+                ny' = n .^ (n .* h)
                 ny = normalize ny'
                 -- Perpendicular component
                 nx = normalize $ h <-> ny'
-                ta = tan $! a
     in
       case roots of
         Nothing -> []
@@ -237,7 +247,6 @@ trace !(Cone n c a) !(pos, v) =
             let
                 pos1 = moveBy pos v t1
                 pos2 = moveBy pos v t2
-                odelta = n .* c
             in
               case ((pos1 .* n - odelta) > 0, (pos1 .* n - odelta) > 0) of
                 (True, True) -> [HitPoint t1 (Just $ normal pos1) :!:
