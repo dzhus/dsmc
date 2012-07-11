@@ -49,14 +49,8 @@ than using typeclasses.
             typeclasses without requiring an existential, then you don't
             understand typeclasses)
 <shachaf> But I can still contradict you. :-)
-<efie> I managed the c-library thing i gues... they seem to come with the
-       "GTK/Glade.exe"bundle which should be installed to path without spaces,
-       so "program files\..." wont work. now i can do "cabal install glade"
-       and there aren't any errors concerning missing c-libraries anymore
-<geekosaur> the no-spaces thing is pretty much normal, yes
 <yitz> dzhus: type classes are very nice when you need them, but that is not
        very common. it is much more common for sum types to be the right tool.
-                                                                        
 <yitz> dzhus: why would a type class give more type checking than dispatching
        on the different constructors of a sum type?  
 <dzhus> yitz: explicit typecheck failure vs. compiler warning
