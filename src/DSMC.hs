@@ -9,7 +9,6 @@ module DSMC
     ( advance
     , step
     , simulate
-    , regPrintVels
     )
 
 where
@@ -49,6 +48,7 @@ reflect g body dt reflector ens = do
     -- Particle after collisionless motion
     let movedPcl = move dt pcl
     case (hitPoint dt body movedPcl) of
+      -- Enjoy your convex-only case.
       S.Just (HitPoint th (S.Just n)) ->
           let
               -- Position and velocity at hit point
@@ -132,12 +132,3 @@ simulate domain body flow dt tmax ex gsplit =
       s5 <- create >>= save
       s6 <- create >>= save
       sim1 gs (s1, s2, s3, s4, s5, s6) 0 emptyEnsemble
-
-regPrintVels :: RegularSubdivision -> Ensemble -> IO ()
-regPrintVels subdiv ens =
-    let 
-        !(cells, cls) = makeRegularClassifier subdiv
-        !indefy = makeRegularIndexer subdiv
-        mcells = samplingSort cells cls indefy ens
-    in do
-      sampleVels mcells >>= printVels

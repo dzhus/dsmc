@@ -4,17 +4,15 @@
 
 Macroscopic parameters calculation.
 
-We use regular spatial grid for sampling.
+We use regular spatial grid and time averaging for sampling. Sampling
+should start after particle system has reached steady state. Samples
+are then collected in each cell for a certain number of time steps.
 
 -}
 
 module DSMC.Macroscopic
     ( MacroCell
-    , Macroscopic
     , Velocity
-    , samplingSort
-    , sampleVels
-    , printVels
     )
 
 where
@@ -26,7 +24,7 @@ import Control.Monad.ST
 import Data.Strict.Maybe
 
 import qualified Data.Array.Repa as R
-import qualified Data.Array.Repa.Repr.Vector as R
+import qualified Data.Array.Repa.Repr.Unboxed as R
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as VU
 
@@ -35,58 +33,37 @@ import DSMC.Particles
 import DSMC.Util.Vector
 
 
+-- | Two-dimensional array which stores macroscropic parameters in
+-- each cell for every time step calculated during macroscopic
+-- sampling collection step. First dimension is time step index, where
+-- 0 is the time step when averaging starts
+type MacroSamples = R.Array R.U R.DIM2
+
+
 -- | Sampling cell is attached to certain point in space and has a
 -- number of specimen.
 type MacroCell = (Point, CellContents)
 
 
--- | Macroscopic parameters are measured at certain point by averaging
--- over specimen.
-type Macroscopic a = (Point, a)
-
-
 -- | Flow velocity.
-type Velocity = Macroscopic Vec3
+type Velocity = Vec3
 
 
-type CellSampler a = MacroCell -> Maybe a
+-- | A function which calculates instantaneous macroscopic average of
+-- a parameter using molecules in a cell.
+type CellSampler a = CellContents -> Maybe a
 
 
 -- | Sample velocity inside a cell.
 sampleVelocity :: CellSampler Velocity
-sampleVelocity !(pt, ens) =
+sampleVelocity !ens =
     case VU.null ens of
       True -> Nothing
-      False -> Just $ (pt, (VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens) .^ 
-                             (1 / fromIntegral (VU.length ens)))
+      False -> Just $ (VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens) .^ 
+                      (1 / fromIntegral (VU.length ens))
 
 
--- | Sort particles for further sampling.
-samplingSort :: Int 
-             -- ^ Grid size.
-             -> Classifier
-             -- ^ Classifier which matches the grid size.
-             -> (Int -> Point)
-             -- ^ Cell indexer.
-             -> Ensemble -> V.Vector MacroCell
-samplingSort cellCount cls ind ens =
-    let
-        points = V.generate cellCount ind
-        conts = runST $ sortParticles cellCount cls ens
-    in
-      V.zip points conts
-
-
-sampleVels :: Monad m => V.Vector MacroCell -> m (V.Vector (Maybe Velocity))
-sampleVels cells =
-    let
-        arr = R.fromVector (R.ix1 $ V.length cells) cells
-    in do
-      e <- R.computeP $ R.map sampleVelocity arr
-      return $ R.toVector e
-
-
-printVels :: V.Vector (Maybe Velocity) -> IO ()
+printVels :: V.Vector (Maybe (Point, Velocity)) -> IO ()
 printVels samples =
     V.forM_ samples
          (\mb -> do case mb of
