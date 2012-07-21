@@ -24,7 +24,6 @@ import Control.Monad.ST
 import Data.Strict.Maybe
 
 import qualified Data.Array.Repa as R
-import qualified Data.Array.Repa.Repr.Unboxed as R
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as VU
 
@@ -33,11 +32,19 @@ import DSMC.Particles
 import DSMC.Util.Vector
 
 
+-- | Macroscopic parameters calculated in every cell: 1st raw moment
+-- for particle velocity, 2nd central moment for particle velocity and
+-- particle count.
+type MacroParameters = (Vec3, Vec3, Int)
+
+
 -- | Two-dimensional array which stores macroscropic parameters in
 -- each cell for every time step calculated during macroscopic
 -- sampling collection step. First dimension is time step index, where
--- 0 is the time step when averaging starts
-type MacroSamples = R.Array R.U R.DIM2
+-- 0 is the time step when averaging starts; second dimension is the
+-- cell index as returned by function produced with corresponding
+-- 'makeRegularIndexer'.
+type MacroSamples = R.Array R.U R.DIM2 MacroParameters
 
 
 -- | Sampling cell is attached to certain point in space and has a
