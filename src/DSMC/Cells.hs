@@ -1,11 +1,11 @@
 {-|
 
-Particle tracking for spatial grid for DSMC.
+Particle tracking for regular spatial grid for DSMC.
 
 This module is used to sort particles into ordered vector of cells for
 collision step or macroscopic parameter sampling. We do not provide
 any special cell datatype since it varies which cell data is required
-on every step.
+on every step, so only particles in every cell are stored.
 
 -}
 
@@ -39,20 +39,22 @@ import DSMC.Util.Vector
 type CellContents = VU.Vector Particle
 
 
--- | Every particle belongs to some cell and can be given the unique
--- index inside this cell.
-type CellMapping = (Int, Int)
-
-
 -- | Assuming there's a linear ordering on all cells, Classifier must
 -- yield index of cell for given particle.
 type Classifier = Particle -> Int
+
+
+-- | Every particle belongs to certain cell and can be given the
+-- unique index inside this cell. Both cell index and particle index
+-- are 0-based.
+type CellMapping = (Int, Int)
 
 
 -- | Pre-calculate particle classification.
 --
 -- Yield classification for ensemble and vector of cell lengths.
 classifyAll :: Int
+            -- ^ Cell count.
             -> Classifier
             -> VU.Vector Particle
             -> ST s (VU.Vector CellMapping, VU.Vector Int)
@@ -131,8 +133,8 @@ makeRegularClassifier (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
               nx + ny * xsteps + nz * xsteps * ysteps
 
 
--- | Indexing function which maps cell numbers to central points of
--- regular cells.
+-- | Return indexing function which maps cell numbers to central
+-- points of regular cells.
 makeRegularIndexer :: RegularSubdivision
                    -> (Int -> Point)
 makeRegularIndexer (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
