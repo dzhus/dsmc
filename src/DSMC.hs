@@ -64,6 +64,7 @@ reflect g body dt reflector ens = do
 type GlobalSeeds = [Seed]
 
 
+-- | Collisionless motion step.
 advance :: GlobalSeeds
         -> Body
         -> Time
@@ -83,17 +84,17 @@ advance gs b dt surf ens =
       (fromUnboxed1 $ VU.concat $ map fst v', map snd v')
 
 
--- Monadic because of Repa's parallel computeP.
+-- | Monadic because of Repa's parallel computeP.
 step :: Monad m =>
         GlobalSeeds
-     -> DomainSeed
+     -> DomainSeeds
      -> Domain
      -> Body
      -> Flow
      -> Time
      -> Double
      -> Ensemble
-     -> m (Ensemble, GlobalSeeds, DomainSeed)
+     -> m (Ensemble, GlobalSeeds, DomainSeeds)
 step gseeds dseeds domain body flow dt ex ens =
     do
       let !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
