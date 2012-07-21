@@ -18,7 +18,7 @@ module DSMC.Domain
     , clipToDomain
     , openBoundaryInjection
     , initialParticles
-    , DomainSeed
+    , DomainSeeds
     )
 
 where
@@ -41,8 +41,8 @@ import DSMC.Util.Vector
 -- | Domain in which particles are spawned or system evolution is
 -- simulated.
 data Domain = Domain !Double !Double !Double !Double !Double !Double
-            -- ^ Rectangular volume, given by min/max value on every
-            -- dimension.
+              -- ^ Rectangular volume, given by min/max value on every
+              -- dimension.
               deriving Show
 
 
@@ -71,7 +71,7 @@ makeDomain !(x, y, z) !w !l !h =
 
 
 -- | PRNG seeds used by particle generators.
-type DomainSeed = (Seed, Seed, Seed, Seed, Seed, Seed)
+type DomainSeeds = (Seed, Seed, Seed, Seed, Seed, Seed)
 
 
 -- | Calculate width, length and height of a domain, which are
@@ -159,14 +159,14 @@ initialParticles g d flow = fromUnboxed1 res
 --
 -- Particles in every interface domain are spawned in parallel using
 -- Strategies.
-openBoundaryInjection :: DomainSeed
+openBoundaryInjection :: DomainSeeds
                       -> Domain
                       -- ^ Simulation domain.
                       -> Double
                       -- ^ Interface domain extrusion length.
                       -> Flow
                       -> Ensemble
-                      -> (Ensemble, DomainSeed)
+                      -> (Ensemble, DomainSeeds)
 openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
     let
         (w, l, h) = getDimensions domain
