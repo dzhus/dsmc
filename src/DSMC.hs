@@ -6,8 +6,7 @@ Simulation procedures.
 
 -}
 module DSMC
-    ( advance
-    , step
+    ( motion
     , simulate
     )
 
@@ -65,13 +64,13 @@ type GlobalSeeds = [Seed]
 
 
 -- | Collisionless motion step.
-advance :: GlobalSeeds
-        -> Body
-        -> Time
-        -> Surface
-        -> Ensemble
-        -> (Ensemble, GlobalSeeds)
-advance gs b dt surf ens =
+motion :: GlobalSeeds
+       -> Body
+       -> Time
+       -> Surface
+       -> Ensemble
+       -> (Ensemble, GlobalSeeds)
+motion gs b dt surf ens =
     let
         vs :: [VU.Vector Particle]
         -- | Since 'reflect' is sequential, we split ensemble into N
@@ -84,45 +83,41 @@ advance gs b dt surf ens =
       (fromUnboxed1 $ VU.concat $ map fst v', map snd v')
 
 
--- | Monadic because of Repa's parallel computeP.
-step :: Monad m =>
-        GlobalSeeds
-     -> DomainSeeds
-     -> Domain
-     -> Body
-     -> Flow
-     -> Time
-     -> Double
-     -> Ensemble
-     -> m (Ensemble, GlobalSeeds, DomainSeeds)
-step gseeds dseeds domain body flow dt ex ens =
-    do
-      let !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
-          !(e', gseeds') = advance gseeds body dt (CLL 500 0.1 0.3) e
-      !e'' <- clipToDomain domain e'
-      return $! (e'', gseeds', dseeds')
-
-
 -- | Perform DSMC simulation.
 simulate :: PrimMonad m =>
             Domain
          -> Body
          -> Flow
          -> Time
+         -- ^ Time step.
          -> Time
          -> Double
+         -- ^ Source reservoir extrusion.
          -> Int
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
          -> m Ensemble
 simulate domain body flow dt tmax ex gsplit =
     let
+        -- | Unpack seeds, advance the system 
+        step :: Monad m =>
+                GlobalSeeds
+             -> DomainSeeds
+             -> Ensemble
+             -> m (Ensemble, GlobalSeeds, DomainSeeds)
+        step gseeds dseeds ens =
+            do
+              let !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+                  !(e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
+              !e'' <- clipToDomain domain e'
+              return $! (e'', gseeds', dseeds')
+
         -- Helper which runs simulation until current time exceeds
         -- limit
         sim1 gseeds dseeds tcur ens =
             if tcur > tmax then return ens
                else do
-                 (ens', gseeds', dseeds') <- step gseeds dseeds domain body flow dt ex ens
+                 (ens', gseeds', dseeds') <- step gseeds dseeds ens
                  sim1 gseeds' dseeds' (tcur + dt) ens'
     in do
       gs <- replicateM gsplit $ create >>= save
