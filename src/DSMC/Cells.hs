@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 {-|
 
 Particle tracking for regular spatial grid for DSMC.
@@ -11,7 +13,9 @@ on every step, so only particles in every cell are stored.
 
 module DSMC.Cells
     ( -- * Generic functions
-      CellContents
+      Cells(..)
+    , getCell
+    , CellContents
     , Classifier
     , sortParticles
     -- * Regular subdivision
@@ -22,11 +26,14 @@ module DSMC.Cells
 
 where
 
+import Prelude hiding (Just, Nothing, Maybe, fst)
+
 import Control.Monad.ST
+
+import Data.Strict.Maybe
+
 import qualified Data.Array.Repa as R
 
-import qualified Data.Vector as V
-import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
 
@@ -39,73 +46,98 @@ import DSMC.Util.Vector
 type CellContents = VU.Vector Particle
 
 
+-- | Particles sorted by cells, along with cell starting positions in
+-- vector and cell sizes.
+data Cells = Cells (VU.Vector Particle) (VU.Vector Int) (VU.Vector Int)
+
+
 -- | Assuming there's a linear ordering on all cells, Classifier must
 -- yield index of cell for given particle.
 type Classifier = Particle -> Int
 
 
--- | Every particle belongs to certain cell and can be given the
--- unique index inside this cell. Both cell index and particle index
--- are 0-based.
-type CellMapping = (Int, Int)
-
-
--- | Pre-calculate particle classification.
+-- | Fetch contents of n-th cell.
 --
--- Yield classification for ensemble and vector of cell lengths.
-classifyAll :: Int
-            -- ^ Cell count.
-            -> Classifier
-            -> VU.Vector Particle
-            -> ST s (VU.Vector CellMapping, VU.Vector Int)
-classifyAll cellCount classify ens = do
-  lengths <- VUM.replicate cellCount 0
+-- Bounds (in case cell index is invalid) are checked only on vector
+-- level.
+getCell :: Cells 
+        -> Int
+        -- ^ Cell index.
+        -> Maybe CellContents
+getCell !(Cells ens starts lengths) n =
+    case (lengths VU.! n) of
+      0 -> Nothing
+      l -> Just $ VU.slice (starts VU.! n) l ens
 
-  classes <- VU.forM ens (\p -> do
-      let cellNumber = classify p
-      -- Increment cell particle count
-      count <- VUM.unsafeRead lengths cellNumber
-      VUM.unsafeWrite lengths cellNumber (count + 1)
-      -- Yield cell number and index of particle in the cell
-      return $ (cellNumber, count))
 
-  lengths' <- VU.unsafeFreeze lengths
-  return $ (classes, lengths')
+-- | Calculate cell numbers for particle ensemble.
+classifyAll :: Monad m => Classifier -> Ensemble -> m (VU.Vector Int)
+classifyAll classify ens = do
+  classes' <- R.computeP $ R.map classify ens
+  return $! R.toUnboxed classes'
+
+
+iforM_ :: (Monad m, VUM.Unbox a) =>
+          VU.Vector a
+       -> ((Int, a) -> m b)
+       -> m ()
+iforM_ v = VU.forM_ (VU.imap (,) v)
 
 
 -- | Sort particle ensemble into @N@ cells using the classifier
--- function. Cells are stored as irregular two-dimensional array,
--- using mutable 'Data.Vector.Unboxed.Vector' operations internally.
+-- function.
 --
 -- Classifier extent must match @N@, yielding numbers between @0@ and
 -- @N-1@.
-sortParticles :: Int
-              -- ^ Number of cells.
-              -> Classifier
+sortParticles :: (Int, Classifier)
+              -- ^ Cell count and classifier.
               -> Ensemble
-              -> ST s (V.Vector CellContents)
-sortParticles cellCount classify ens = do
-  let ens' = R.toUnboxed ens
-  -- Mutable vector of sequences
-  (classes, lengths) <- classifyAll cellCount classify ens'
+              -> Cells
+sortParticles (cellCount, classify) ens' = runST $ do
+  classes <- classifyAll classify ens'
 
-  -- Assign proper sizes to second dimension.
-  --
-  -- Somewhy mutable vectors have no generateM.
-  cells' <- V.generateM cellCount $ \j -> do
-                 VUM.unsafeNew ((VU.!) lengths j)
-  cells <- V.unsafeThaw cells'
+  let ens = R.toUnboxed ens'
+      particleCount = VU.length ens
 
-  -- Classify particles stored in unboxed vector into cellCount.
-  VU.zipWithM_ (\p (c, i) -> do
-                  cell <- VM.unsafeRead cells c
-                  VUM.unsafeWrite cell i p
-                  VM.unsafeWrite cells c cell) ens' classes
+  -- Cell sizes
+  lengths' <- VUM.replicate cellCount 0
 
-  -- Freeze top-level mutable
-  V.generateM cellCount (\j -> do
-                           cell <- VM.unsafeRead cells j
-                           VU.unsafeFreeze cell)
+  -- Positions of particles inside cells
+  posns' <- VUM.replicate particleCount 0
+
+  -- Sequentially calculate particle indices inside cells and cell
+  -- lengths.
+  iforM_ classes (\(particleNumber, cellNumber) -> do
+       -- Increment cell particle count
+       count <- VUM.unsafeRead lengths' cellNumber
+       VUM.unsafeWrite posns' particleNumber count
+       VUM.unsafeWrite lengths' cellNumber (count + 1)
+       return ())
+
+  lengths <- VU.unsafeFreeze lengths'
+  posns <- VU.unsafeFreeze posns'
+
+  -- Starting positions for cells inside cell array
+  let !starts = VU.prescanl' (+) 0 lengths
+
+  -- Calculate indices for particles inside sorted grand vector of
+  -- cell contents
+  sortedIds' <- VUM.replicate particleCount 0
+  iforM_ classes (\(particleNumber, cellNumber) -> do
+       let i = (starts VU.! cellNumber) + (posns VU.! particleNumber)
+       VUM.unsafeWrite sortedIds' i particleNumber
+       return ())
+  sortedIds <- VU.unsafeFreeze sortedIds'
+
+  -- Fill the resulting array in parallel
+  sortedEns <- R.computeP $
+               R.fromFunction
+                    (R.ix1 $ particleCount)
+                    (\(R.Z R.:. position) ->
+                           ens VU.! (sortedIds VU.! position))
+
+  return $! Cells (R.toUnboxed sortedEns) starts lengths
+
 
 
 -- | Domain divided in regular grid with given steps by X, Y and Z
