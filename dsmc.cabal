@@ -12,7 +12,7 @@ cabal-version:       >=1.8
 tested-with:         GHC == 7.4.1
 
 library
-  ghc-options: -Wall -O2 -funbox-strict-fields -fno-state-hack
+  ghc-options: -Wall -O2 -funbox-strict-fields -Odph -rtsopts -threaded -fno-liberate-case -funfolding-use-threshold1000 -funfolding-keeness-factor1000 -fllvm -optlo-O3
   hs-source-dirs: src
 
   exposed-modules:
@@ -34,9 +34,9 @@ library
     attoparsec  == 0.10.*,
     base        == 4.*,
     bytestring  == 0.9.*,
-    mwc-random  == 0.12.*,
+    mwc-random  >= 0.12.0.1,
     parallel    == 3.2.*,
     primitive   == 0.4.*,
-    repa        == 3.1.*,
+    repa        == 3.2.*,
     strict      == 0.3.*,
     vector      == 0.9.*
