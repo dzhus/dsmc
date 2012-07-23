@@ -66,9 +66,9 @@ purifyRandomST f seed = runST $ do
 
 
 -- | 'parMap' with 'rpar' over list of data and initial seeds using ST
--- action taking single PRNG state, producing list of results and used
--- seeds.
-parMapST :: (forall s.GenST s -> a -> ST s a) -> [(a, Seed)] -> [(a, Seed)]
+-- action which takes single PRNG state; produce list of results and
+-- used seeds.
+parMapST :: (forall s.GenST s -> a -> ST s b) -> [(a, Seed)] -> [(b, Seed)]
 parMapST f =
     parMap rpar (\(p, seed) -> purifyRandomST (`f` p) seed)
 {-# INLINE parMapST #-}
