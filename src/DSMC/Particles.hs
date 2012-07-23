@@ -13,6 +13,7 @@ module DSMC.Particles
     -- ** Particle ensembles
     , Ensemble
     , emptyEnsemble
+    , ensembleSize
     , printEnsemble
     , fromUnboxed1
     -- * Flows
@@ -70,6 +71,10 @@ fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 emptyEnsemble :: Ensemble
 emptyEnsemble = fromUnboxed1 $ VU.empty
 
+
+-- | Amount of particles in ensemble.
+ensembleSize :: Ensemble -> Int
+ensembleSize ens = n where (R.Z R.:. n) = R.extent ens
 
 -- | Print particles, one per row, using the format:
 --
