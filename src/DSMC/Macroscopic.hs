@@ -103,7 +103,7 @@ updateSamples n sorting@(cellCount, _) ens oldSamples =
       samples <- VU.unsafeFreeze samples'
 
       return samples
-    
+
 
 -- | Sample macroscopic values in a cell.
 sampleMacroscopic :: Maybe CellContents -> MacroParameters
@@ -118,7 +118,7 @@ sampleMacroscopic !c =
               -- Mean absolute velocity
               m1 = (VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens) .^ s
               -- Mean square thermal velocity
-              c2 = (VU.foldl' (+) 0 $ 
+              c2 = (VU.foldl' (+) 0 $
                       VU.map (\(_, v) ->
                                   let
                                     thrm = (v <-> m1)
