@@ -131,9 +131,7 @@ data Body = Plane !Vec3 !Double
           -- angle tangent and odelta are stored for intersection
           -- calculations.
           | Union !Body !Body
-          -- ^ Union of bodies.
           | Intersection !Body !Body
-          -- ^ Intersection of bodies.
           | Complement !Body
             deriving Show
 
@@ -168,14 +166,17 @@ cone a o h =
     in
       Cone n o h m ta odelta
 
+-- | Intersection of two bodies.
 intersect :: Body -> Body -> Body
 intersect !b1 !b2 = Intersection b1 b2
 
 
+-- | Union of two bodies.
 unite :: Body -> Body -> Body
 unite !b1 !b2 = Union b1 b2
 
 
+-- | Complement to a body (normals flipped).
 complement :: Body -> Body
 complement !b = Complement b
 

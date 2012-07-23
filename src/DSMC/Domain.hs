@@ -186,9 +186,6 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
 
 
 -- | Filter out particles which are outside of the domain.
---
--- This is a monadic action because 'selectP' is used, which does
--- 'unsafePerformIO' under the hood.
 clipToDomain :: Monad m => Domain -> Ensemble -> m Ensemble
 clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
     let

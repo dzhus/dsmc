@@ -29,6 +29,7 @@ import DSMC.Util.Vector
 type Reflector s = GenST s -> Vec3 -> Vec3 -> ST s Vec3
 
 
+-- | Surface models.
 data Surface = CLL { bodyTemperature :: !Double
                    -- ^ Absolute temperature of surface.
                    , alpha :: !Double
@@ -48,6 +49,7 @@ data Surface = CLL { bodyTemperature :: !Double
                -- ^ Surface with specular reflection.
 
 
+-- | Produce reflector depending on surface type.
 makeReflector :: Surface -> Reflector s
 makeReflector (CLL t alphanor sigmatan) =
     let

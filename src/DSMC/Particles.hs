@@ -68,6 +68,7 @@ fromUnboxed1 :: VU.Vector Particle -> Ensemble
 fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 
 
+-- | Ensemble with zero particles in it.
 emptyEnsemble :: Ensemble
 emptyEnsemble = fromUnboxed1 $ VU.empty
 

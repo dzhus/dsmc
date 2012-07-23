@@ -28,6 +28,7 @@ import qualified Data.Vector.Unboxed as VU
 import System.Random.MWC
 
 
+-- | Results of solving a quadratic equation.
 type SquareRoots = Maybe (Pair Double Double)
 
 -- | Solve quadratic equation @ax^2 + bx + c = 0@.
