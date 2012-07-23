@@ -114,7 +114,8 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
         step (ens, gseeds, dseeds) =
             do
               let -- Inject new particles
-                  !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+                  !(e, dseeds') =
+                      openBoundaryInjection dseeds domain ex flow ens
                   -- Lagrangian step
                   !(e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
               -- Filter out particles which left the domain
@@ -123,35 +124,53 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
 
         -- Classifier for spatial grid used to sample macroscopic parameters.
         macroClassifier :: (Int, Classifier)
-        macroClassifier@(cellCount, _) = makeRegularClassifier (domain, mx, my, mz)
+        macroClassifier@(cellCount, _) =
+            makeRegularClassifier (domain, mx, my, mz)
 
-        -- Helper which runs simulation until enough samples in steady
-        -- state are collected
-        sim1 :: Monad m => 
-                GlobalSeeds 
-             -> DomainSeeds 
-             -> Ensemble 
-             -> MacroSamples 
-             -> Maybe Int
-             -- ^ Simulation iterations till exit, or Nothing if
-             -- steady regime has not yet been reached.
+        -- Check if two consecutive particle ensemble states
+        -- correspond to steady regime.
+        stabilized :: Ensemble -> Ensemble -> Bool
+        stabilized ens prevEns =
+            ((abs $
+              (fromIntegral $ ensembleSize ens) /
+              (fromIntegral $ ensembleSize prevEns)) - 1) < sepsilon
+
+        -- Helper which actually runs simulation and collects
+        -- macroscopic data until enough samples in steady state are
+        -- collected.
+        sim1 :: Monad m =>
+                GlobalSeeds
+             -> DomainSeeds
+             -> Ensemble
+             -> Maybe (Int, MacroSamples)
+             -- ^ Simulation iterations till exit and macroscopic
+             -- samples collected so far, or Nothing if steady regime
+             -- has not yet been reached.
              -> m Ensemble
-        sim1 gseeds dseeds ens samples q =
-            case q of
-              Just 0 -> return ens
+        sim1 gseeds dseeds ens steady =
+            case steady of
+              Just (0, _) -> return ens
               _ -> do
-                (ens', gseeds', dseeds') <- step (ens, gseeds, dseeds)
+                !(ens', gseeds', dseeds') <- step (ens, gseeds, dseeds)
 
-                -- Check if number of particles in the system has stabilized
-                !(newQ, samples') <-
-                    case q of
-                      Nothing -> return $
-                                 if ((abs $ (fromIntegral $ ensembleSize ens') / (fromIntegral $ ensembleSize ens)) - 1) < sepsilon
-                                 then (Just ssteps, samples)
-                                 else (Nothing, samples)
-                      Just n -> return $ (Just $ n - 1, samples)
+                !newSteady <-
+                    case steady of
+                      -- Check if system is steady
+                      Nothing ->
+                          return $
+                          if stabilized ens' ens
+                          -- Start averaging
+                          then Just (ssteps, initializeSamples cellCount ssteps)
+                          -- Not there yet
+                          else Nothing
+                      -- Already in steady state
+                      Just (n, samples) ->
+                          do
+                            samples' <-
+                                updateSamples (ssteps - n) macroClassifier ens' samples
+                            return $ Just (n - 1, samples')
 
-                sim1 gseeds' dseeds' ens' samples' newQ
+                sim1 gseeds' dseeds' ens' newSteady
     in do
       gs <- replicateM gsplit $ create >>= save
       s1 <- create >>= save
@@ -160,4 +179,4 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
       s4 <- create >>= save
       s5 <- create >>= save
       s6 <- create >>= save
-      sim1 gs (s1, s2, s3, s4, s5, s6) emptyEnsemble (initializeSamples cellCount ssteps) Nothing
+      sim1 gs (s1, s2, s3, s4, s5, s6) emptyEnsemble Nothing
