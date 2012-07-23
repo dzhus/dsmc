@@ -13,7 +13,7 @@ on every step, so only particles in every cell are stored.
 
 module DSMC.Cells
     ( -- * Generic functions
-      Cells(..)
+      Cells
     , getCell
     , CellContents
     , Classifier
@@ -46,9 +46,18 @@ import DSMC.Util.Vector
 type CellContents = VU.Vector Particle
 
 
--- | Particles sorted by cells, along with cell starting positions in
--- vector and cell sizes.
-data Cells = Cells (VU.Vector Particle) (VU.Vector Int) (VU.Vector Int)
+-- | Particles sorted by cells.
+--
+-- We store contents of all cells in a single densely packed unboxed
+-- vector. Additionally cell count, cell starting positions in vector
+-- (@s@) and cell sizes (@l@) are stored.
+--
+-- >   s1         s2    s3
+-- >   |          |     |
+-- > {[ooooooooo][oooo][oooooo]...}
+-- >     cell1     c2     c3
+-- >     l1=9      l2=4   l3=6
+data Cells = Cells !(VU.Vector Particle) !Int !(VU.Vector Int) !(VU.Vector Int)
 
 
 -- | Assuming there's a linear ordering on all cells, Classifier must
@@ -57,17 +66,21 @@ type Classifier = Particle -> Int
 
 
 -- | Fetch contents of n-th cell.
---
--- Bounds (in case cell index is invalid) are checked only on vector
--- level.
-getCell :: Cells 
+getCell :: Cells
         -> Int
         -- ^ Cell index.
         -> Maybe CellContents
-getCell !(Cells ens starts lengths) n =
+getCell !(Cells ens _ starts lengths) !n =
     case (lengths VU.! n) of
       0 -> Nothing
-      l -> Just $ VU.slice (starts VU.! n) l ens
+      cl -> Just $ VU.slice (starts VU.! n) cl ens
+
+
+-- | Map a function over cell indices and contents of every cell.
+cellMap :: (Int -> Maybe CellContents -> a) -> Cells -> R.Array R.D R.DIM1 a
+cellMap f !cells@(Cells _ l _ _) =
+    R.fromFunction (R.ix1 $ l) (\(R.Z R.:. cellNumber) ->
+                                    f cellNumber $! getCell cells cellNumber)
 
 
 -- | Calculate cell numbers for particle ensemble.
@@ -136,7 +149,7 @@ sortParticles (cellCount, classify) ens' = runST $ do
                     (\(R.Z R.:. position) ->
                            ens VU.! (sortedIds VU.! position))
 
-  return $! Cells (R.toUnboxed sortedEns) starts lengths
+  return $! Cells (R.toUnboxed sortedEns) cellCount starts lengths
 
 
 
