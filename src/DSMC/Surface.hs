@@ -2,7 +2,7 @@
 
 {-|
 
-Gas-surface interactions.
+Gas-surface interaction models.
 
 -}
 
@@ -43,6 +43,7 @@ data Surface = CLL { bodyTemperature :: !Double
                        -- ^ Mass of reflected molecules (equal to
                        -- that in incident flow).
                        } |
+               -- ^ Diffuse reflection.
                Mirror
                -- ^ Surface with specular reflection.
 
