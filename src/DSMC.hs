@@ -13,7 +13,9 @@ module DSMC
 where
 
 import Control.Monad
+import Control.Monad.Trans.Reader
 import Control.Monad.Primitive (PrimMonad)
+import Control.Monad.Trans.State.Strict
 
 import Data.Functor
 
@@ -129,13 +131,13 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
               !e'' <- Debug.Trace.trace (show $ R.extent e') clipToDomain domain e'
               return $! Debug.Trace.trace ("Now: " ++ (show $ R.extent e'')) (e'', gseeds', dseeds')
 
-        macroSubdivision :: UniformGrid
-        macroSubdivision = UniformGrid domain mx my mz
+        macroSubdiv :: UniformGrid
+        macroSubdiv = UniformGrid domain mx my mz
 
-        -- Classifier for spatial grid used to sample macroscopic parameters.
-        macroClassifier :: (Int, Classifier)
-        macroClassifier@(cellCount, _) =
-            makeUniformClassifier macroSubdivision
+        macroOpts = MacroSamplingOptions 
+                    (makeUniformClassifier macroSubdiv)
+                    (makeUniformIndexer macroSubdiv)
+                    ssteps
 
         -- Check if two consecutive particle ensemble states
         -- correspond to steady regime.
@@ -148,39 +150,21 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
         -- Helper which actually runs simulation and collects
         -- macroscopic data until enough samples in steady state are
         -- collected.
-        sim1 :: Monad m =>
-                GlobalSeeds
-             -> DomainSeeds
-             -> Ensemble
-             -> Maybe (Int, MacroSamples)
-             -- ^ Simulation iterations till exit and macroscopic
-             -- samples collected so far, or Nothing if steady regime
-             -- has not yet been reached.
-             -> m Ensemble
-        sim1 gseeds dseeds ens steady =
-            case steady of
-              Just (0, _) -> return ens
-              _ -> do
-                !(ens', gseeds', dseeds') <- step (ens, gseeds, dseeds)
+        sim1 :: (Ensemble, GlobalSeeds, DomainSeeds)
+             -> Bool
+             -- ^ True if steady regime has been reached.
+             -> MacroSamplingMonad Ensemble
+        sim1 !oldState@(ens, _, _) !steady = do
+            !newState@(ens', _, _) <- step oldState
+            let !newSteady = steady || stabilized ens' ens
 
-                !newSteady <-
-                    case steady of
-                      -- Check if system is steady
-                      Nothing ->
-                          return $
-                          if stabilized ens' ens
-                          -- Start averaging
-                          then Just (ssteps, initializeSamples cellCount ssteps)
-                          -- Not there yet
-                          else Nothing
-                      -- Already in steady state
-                      Just (n, samples) ->
-                          do
-                            samples' <-
-                                updateSamples (ssteps - n) macroClassifier ens' samples
-                            return $ Just (n - 1, samples')
+            !enough <- case steady of
+                         False -> return False
+                         True -> updateSamples ens'
 
-                sim1 gseeds' dseeds' ens' newSteady
+            case enough of
+              False -> sim1 newState newSteady
+              True -> return ens'
     in do
       gs <- replicateM gsplit $ create >>= save
       s1 <- create >>= save
@@ -189,4 +173,8 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
       s4 <- create >>= save
       s5 <- create >>= save
       s6 <- create >>= save
-      sim1 gs (s1, s2, s3, s4, s5, s6) emptyEnsemble Nothing
+      return $ 
+             runReader 
+             (evalStateT 
+              (sim1 (emptyEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False) S.Nothing)
+             macroOpts
