@@ -2,7 +2,7 @@
 
 {-|
 
-Particle tracking for regular spatial grid for DSMC.
+Particle tracking for uniform spatial grid for DSMC.
 
 This module is used to sort particles into ordered vector of cells for
 collision step or macroscopic parameter sampling. We do not provide
@@ -20,10 +20,10 @@ module DSMC.Cells
     -- * Particle tracking
     , Classifier
     , sortParticles
-    -- * Regular subdivision
-    , RegularSubdivision
-    , makeRegularClassifier
-    , makeRegularIndexer
+    -- * Uniform subdivision
+    , UniformGrid(..)
+    , makeUniformClassifier
+    , makeUniformIndexer
     )
 
 where
@@ -150,16 +150,16 @@ sortParticles (cellCount, classify) ens' = runST $ do
 
 
 
--- | Domain divided in regular grid with given steps by X, Y and Z
+-- | Domain divided in uniform grid with given steps by X, Y and Z
 -- axes.
-type RegularSubdivision = (Domain, Double, Double, Double)
+data UniformGrid = UniformGrid !Domain !Double !Double !Double
 
 
--- | Return grid cell count and classifier for regular grid over
+-- | Return grid cell count and classifier for uniform grid over
 -- domain with given spatial steps.
-makeRegularClassifier :: RegularSubdivision
+makeUniformClassifier :: UniformGrid
                       -> (Int, Classifier)
-makeRegularClassifier (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
+makeUniformClassifier (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
     (xsteps * ysteps * zsteps, classify)
     where
         (w, l, h) = getDimensions d
@@ -176,10 +176,10 @@ makeRegularClassifier (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
 
 
 -- | Return indexing function which maps cell numbers to central
--- points of regular cells.
-makeRegularIndexer :: RegularSubdivision
+-- points of uniform cells.
+makeUniformIndexer :: UniformGrid
                    -> (Int -> Point)
-makeRegularIndexer (d@(Domain xmin _ ymin _ zmin _), hx, hy, hz) =
+makeUniformIndexer (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
     indefy
     where
         (w, l, _) = getDimensions d

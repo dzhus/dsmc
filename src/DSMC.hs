@@ -15,6 +15,8 @@ where
 import Control.Monad
 import Control.Monad.Primitive (PrimMonad)
 
+import Data.Functor
+
 import qualified Data.Array.Repa as R
 
 import qualified Data.Strict.Maybe as S
@@ -33,6 +35,8 @@ import DSMC.Types
 import DSMC.Util
 
 import Control.Monad.ST
+
+import Debug.Trace
 
 -- | Sequential action to move particles and consider particle-body
 -- collisions.
@@ -80,7 +84,7 @@ motion gs b dt surf ens =
         v' :: [(VU.Vector Particle, Seed)]
         !v' = parMapST (\g e -> reflect g b dt reflector e) $ zip vs gs
     in
-      (fromUnboxed1 $ VU.concat $ map fst v', map snd v')
+      (fromUnboxed1 $ VU.concat $ fst <$> v', snd <$> v')
 
 
 -- | Perform DSMC simulation.
@@ -119,13 +123,16 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
                   -- Lagrangian step
                   !(e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
               -- Filter out particles which left the domain
-              !e'' <- clipToDomain domain e'
-              return $! (e'', gseeds', dseeds')
+              !e'' <- Debug.Trace.trace (show $ R.extent e') clipToDomain domain e'
+              return $! Debug.Trace.trace ("Now: " ++ (show $ R.extent e'')) (e'', gseeds', dseeds')
+
+        macroSubdivision :: UniformGrid
+        macroSubdivision = UniformGrid domain mx my mz
 
         -- Classifier for spatial grid used to sample macroscopic parameters.
         macroClassifier :: (Int, Classifier)
         macroClassifier@(cellCount, _) =
-            makeRegularClassifier (domain, mx, my, mz)
+            makeUniformClassifier macroSubdivision
 
         -- Check if two consecutive particle ensemble states
         -- correspond to steady regime.
