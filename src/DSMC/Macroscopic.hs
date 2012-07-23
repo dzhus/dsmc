@@ -23,7 +23,9 @@ where
 import Prelude hiding (Just, Nothing, Maybe)
 
 import Control.Monad.ST
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State.Strict
 
 import Data.Strict.Maybe
 
@@ -63,18 +65,26 @@ type MacroParameters = (Int, Vec3, Double)
 type MacroSamples = VU.Vector MacroParameters
 
 
--- | Monad which stores options of macroscopic sampling.
+-- | Monad which keeps track of sampling process data and stores
+-- options of macroscopic sampling.
+--
+-- State contains averaging steps left and current samples. If
+-- Nothing, then averaging has not started yet.
 --
 -- We use this to make sure that only safe values for cell count and
 -- time steps are used in 'updateSamples' and 'averageSamples' (that
 -- may otherwise cause unbounded access errors).
-type MacroSamplingMonad = Reader SamplingOptions
+type MacroSamplingMonad =
+    StateT (Maybe (Int, MacroSamples)) (Reader SamplingOptions)
 
 
-data SamplingOptions = SamplingOptions { _sorting :: (Int, Classifier)
-                                       , _indexer :: Int -> Point
-                                       , _averagingSteps :: Int
-                                       }
+-- | Options for macroscopic sampling: uniform grid and averaging
+-- steps count.
+data MacroSamplingOptions = 
+    MacroSamplingOptions { _sorting :: (Int, Classifier)
+                         , _indexer :: Int -> Point
+                         , _averagingSteps :: Int
+                         }
 
 
 -- | Parameters in empty cell.
@@ -92,35 +102,39 @@ initializeSamples cellCount ts = VU.replicate (ts * cellCount) emptySample
 
 
 -- | Gather samples from ensemble.
---
--- Bounds are not checked!
-updateSamples :: Int
-              -- ^ Index of current time step, with 0 being the step
-              -- when first sample is gathered.
-              -> Ensemble
-              -> MacroSamples
-              -- ^ Current sample information to be updated, if
-              -- there's any.
-              -> MacroSamplingMonad MacroSamples
-updateSamples n ens oldSamples = do
-  !sorting@(cellCount, _) <- asks _sorting
-  let !sorted = sortParticles sorting ens
+updateSamples :: Ensemble
+              -> MacroSamplingMonad Bool
+updateSamples ens = do
+  samples <- get
+
+  !sorting@(cellCount, _) <- lift $ asks _sorting
+
+  maxSteps <- lift $ asks _averagingSteps
+
+  let !(n, oldSamples) =
+          case samples of
+            Nothing -> (maxSteps, initializeSamples cellCount maxSteps)
+            Just o -> o
+      -- Sort particles into macroscopic cells for sampling
+      !sorted = sortParticles sorting ens
       -- Starting index for current step in grand vector of samples
-      !stepStart = n * cellCount
-  return $ runST $ do
-    -- Sampling results from current step
-    !stepSamples <- R.computeP $
-                    cellMap (\_ c -> sampleMacroscopic c) sorted
+      !stepStart = (maxSteps - n) * cellCount
+      -- Update samples vector
+      !newSamples = runST $ do
+        -- Sampling results from current step
+        !stepSamples <- R.computeP $
+                        cellMap (\_ c -> sampleMacroscopic c) sorted
 
-    samples' <- VU.unsafeThaw oldSamples
-    iforM_ (R.toUnboxed $ stepSamples)
-               (\(i, macroParams) -> do
-                  VUM.write samples' (stepStart + i) macroParams
-                  return ())
-    samples <- VU.unsafeFreeze samples'
+        samples' <- VU.unsafeThaw oldSamples
+        iforM_ (R.toUnboxed $ stepSamples)
+                   (\(i, macroParams) -> do
+                      VUM.write samples' (stepStart + i) macroParams
+                      return ())
+        VU.unsafeFreeze samples'
+  -- Update state of sampling process
+  put $ Just (n + 1, newSamples)
 
-    return samples
-
+  return $ n + 1 == maxSteps
 
 -- | Sample macroscopic values in a cell.
 sampleMacroscopic :: Maybe CellContents -> MacroParameters
