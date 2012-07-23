@@ -41,8 +41,8 @@ solveq :: Double
        -- ^ c
        -> SquareRoots
 solveq !a !b !c
-    | (d >  0) = Just $ min r1 r2 :!: max r1 r2
-    | (d <= 0) = Nothing
+    | (d > 0)   = Just $ min r1 r2 :!: max r1 r2
+    | otherwise = Nothing
     where
       d  =   b * b - 4 * a * c
       q  =   sqrt d
