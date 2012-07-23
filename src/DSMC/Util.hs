@@ -9,6 +9,7 @@ module DSMC.Util
     , parMapST
     , purifyRandomST
     , splitIn
+    , iforM_
     )
 
 where
@@ -22,6 +23,7 @@ import Data.Strict.Maybe
 import Data.Strict.Tuple
 
 import qualified Data.Vector.Generic as VG
+import qualified Data.Vector.Unboxed as VU
 
 import System.Random.MWC
 
@@ -86,3 +88,13 @@ splitIn ens n =
     in
       splitIn1 n [] ens
 {-# INLINE splitIn #-}
+
+
+-- | Map monadic action over pairs of vector indices and items and
+-- throw away the results.
+iforM_ :: (Monad m, VU.Unbox a) =>
+          VU.Vector a
+       -> ((Int, a) -> m b)
+       -> m ()
+iforM_ v = VU.forM_ (VU.imap (,) v)
+{-# INLINE iforM_ #-}

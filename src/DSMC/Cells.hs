@@ -41,6 +41,7 @@ import qualified Data.Vector.Unboxed.Mutable as VUM
 
 import DSMC.Domain
 import DSMC.Particles
+import DSMC.Util
 import DSMC.Util.Vector
 
 
@@ -95,15 +96,6 @@ classifyAll :: Monad m => Classifier -> Ensemble -> m (VU.Vector Int)
 classifyAll classify ens = do
   classes' <- R.computeP $ R.map classify ens
   return $! R.toUnboxed classes'
-
-
--- | Map monadic action over pairs of vector indices and items and
--- throw away the results.
-iforM_ :: (Monad m, VUM.Unbox a) =>
-          VU.Vector a
-       -> ((Int, a) -> m b)
-       -> m ()
-iforM_ v = VU.forM_ (VU.imap (,) v)
 
 
 -- | Sort particle ensemble into @N@ cells using the classifier
