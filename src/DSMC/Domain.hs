@@ -128,11 +128,11 @@ pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
 
 
 -- | Sample initial particles in the domain.
-initialParticles :: Seed
-                 -> Domain
+initialParticles :: Domain
                  -> Flow
+                 -> Seed
                  -> Ensemble
-initialParticles g d flow = fromUnboxed1 res
+initialParticles d flow g = fromUnboxed1 res
                             where
                               (res, _) = pureSpawnParticles d flow g
 
@@ -179,7 +179,7 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
         v = [R.toUnboxed ens]
         (new, (s1':s2':s3':s4':s5':s6':_)) = unzip $
-                       parMap rpar (\(d, s) -> pureSpawnParticles d flow s) $
+                       parMapST (\g d -> spawnParticles d flow g) $
                        zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
     in
       (fromUnboxed1 $ VU.concat (new ++ v), (s1', s2', s3', s4', s5', s6'))
