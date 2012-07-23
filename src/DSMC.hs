@@ -17,7 +17,7 @@ import Control.Monad.Primitive (PrimMonad)
 
 import qualified Data.Array.Repa as R
 
-import Data.Strict.Maybe as S
+import qualified Data.Strict.Maybe as S
 
 import qualified Data.Vector.Unboxed as VU
 
@@ -90,16 +90,24 @@ simulate :: PrimMonad m =>
          -> Flow
          -> Time
          -- ^ Time step.
-         -> Time
          -> Double
          -- ^ Source reservoir extrusion.
+         -> Double
+         -- ^ Steadiness epsilon.
+         -> Int
+         -- ^ Step count limit in steady regime.
+         -> (Double, Double, Double)
+         -- ^ Spatial steps in X, Y, Z of grid used for macroscopic
+         -- parameter sampling.
          -> Int
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
          -> m Ensemble
-simulate domain body flow dt tmax ex gsplit =
+simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
     let
-        -- | Unpack seeds, advance the system 
+        -- Simulate evolution of the particle system for one time
+        -- step, updating seeds used for sampling stochastic
+        -- processes.
         step :: Monad m =>
                 GlobalSeeds
              -> DomainSeeds
@@ -107,18 +115,45 @@ simulate domain body flow dt tmax ex gsplit =
              -> m (Ensemble, GlobalSeeds, DomainSeeds)
         step gseeds dseeds ens =
             do
-              let !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+              let -- Inject new particles
+                  !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+                  -- Lagrangian step
                   !(e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
+              -- Filter out particles which left the domain
               !e'' <- clipToDomain domain e'
               return $! (e'', gseeds', dseeds')
 
-        -- Helper which runs simulation until current time exceeds
-        -- limit
-        sim1 gseeds dseeds tcur ens =
-            if tcur > tmax then return ens
-               else do
-                 (ens', gseeds', dseeds') <- step gseeds dseeds ens
-                 sim1 gseeds' dseeds' (tcur + dt) ens'
+        -- Classifier for spatial grid used to sample macroscopic parameters.
+        macroClassifier :: (Int, Classifier)
+        macroClassifier@(cellCount, _) = makeRegularClassifier (domain, mx, my, mz)
+
+        -- Helper which runs simulation until enough samples in steady
+        -- state are collected
+        sim1 :: Monad m => 
+                GlobalSeeds 
+             -> DomainSeeds 
+             -> Ensemble 
+             -> MacroSamples 
+             -> Maybe Int
+             -- ^ Simulation iterations till exit, or Nothing if
+             -- steady regime has not yet been reached.
+             -> m Ensemble
+        sim1 gseeds dseeds ens samples q =
+            case q of
+              Just 0 -> return ens
+              _ -> do
+                (ens', gseeds', dseeds') <- step gseeds dseeds ens
+
+                -- Check if number of particles in the system has stabilized
+                !(newQ, samples') <-
+                    case q of
+                      Nothing -> return $
+                                 if ((abs $ (fromIntegral $ ensembleSize ens') / (fromIntegral $ ensembleSize ens)) - 1) < sepsilon
+                                 then (Just ssteps, samples)
+                                 else (Nothing, samples)
+                      Just n -> return $ (Just $ n - 1, samples)
+
+                sim1 gseeds' dseeds' ens' samples' newQ
     in do
       gs <- replicateM gsplit $ create >>= save
       s1 <- create >>= save
@@ -127,4 +162,4 @@ simulate domain body flow dt tmax ex gsplit =
       s4 <- create >>= save
       s5 <- create >>= save
       s6 <- create >>= save
-      sim1 gs (s1, s2, s3, s4, s5, s6) 0 emptyEnsemble
+      sim1 gs (s1, s2, s3, s4, s5, s6) emptyEnsemble (initializeSamples cellCount ssteps) Nothing
