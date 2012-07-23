@@ -109,11 +109,9 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
         -- step, updating seeds used for sampling stochastic
         -- processes.
         step :: Monad m =>
-                GlobalSeeds
-             -> DomainSeeds
-             -> Ensemble
+                (Ensemble, GlobalSeeds, DomainSeeds)
              -> m (Ensemble, GlobalSeeds, DomainSeeds)
-        step gseeds dseeds ens =
+        step (ens, gseeds, dseeds) =
             do
               let -- Inject new particles
                   !(e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
@@ -142,7 +140,7 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
             case q of
               Just 0 -> return ens
               _ -> do
-                (ens', gseeds', dseeds') <- step gseeds dseeds ens
+                (ens', gseeds', dseeds') <- step (ens, gseeds, dseeds)
 
                 -- Check if number of particles in the system has stabilized
                 !(newQ, samples') <-
