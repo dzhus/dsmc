@@ -12,10 +12,12 @@ on every step, so only particles in every cell are stored.
 -}
 
 module DSMC.Cells
-    ( -- * Generic functions
+    ( -- * Generic functions for cells
       Cells
-    , getCell
     , CellContents
+    , getCell
+    , cellMap
+    -- * Particle tracking
     , Classifier
     , sortParticles
     -- * Regular subdivision
@@ -57,6 +59,11 @@ type CellContents = VU.Vector Particle
 -- > {[ooooooooo][oooo][oooooo]...}
 -- >     cell1     c2     c3
 -- >     l1=9      l2=4   l3=6
+--
+-- Note that any extra data about cells (like position or volume)
+-- should be maintained separately from cell contents. We use this
+-- approach because collision sampling and macroscopic parameter
+-- calculation require different
 data Cells = Cells !(VU.Vector Particle) !Int !(VU.Vector Int) !(VU.Vector Int)
 
 
@@ -90,6 +97,8 @@ classifyAll classify ens = do
   return $! R.toUnboxed classes'
 
 
+-- | Map monadic action over pairs of vector indices and items and
+-- throw away the results.
 iforM_ :: (Monad m, VUM.Unbox a) =>
           VU.Vector a
        -> ((Int, a) -> m b)
@@ -100,8 +109,8 @@ iforM_ v = VU.forM_ (VU.imap (,) v)
 -- | Sort particle ensemble into @N@ cells using the classifier
 -- function.
 --
--- Classifier extent must match @N@, yielding numbers between @0@ and
--- @N-1@.
+-- Classifier's extent must match @N@, yielding numbers between @0@
+-- and @N-1@.
 sortParticles :: (Int, Classifier)
               -- ^ Cell count and classifier.
               -> Ensemble
@@ -112,29 +121,25 @@ sortParticles (cellCount, classify) ens' = runST $ do
   let ens = R.toUnboxed ens'
       particleCount = VU.length ens
 
-  -- Cell sizes
-  lengths' <- VUM.replicate cellCount 0
-
-  -- Positions of particles inside cells
-  posns' <- VUM.replicate particleCount 0
-
   -- Sequentially calculate particle indices inside cells and cell
-  -- lengths.
+  -- sizes.
+  posns' <- VUM.replicate particleCount 0
+  lengths' <- VUM.replicate cellCount 0
   iforM_ classes (\(particleNumber, cellNumber) -> do
        -- Increment cell particle count
-       count <- VUM.unsafeRead lengths' cellNumber
-       VUM.unsafeWrite posns' particleNumber count
-       VUM.unsafeWrite lengths' cellNumber (count + 1)
+       pos <- VUM.unsafeRead lengths' cellNumber
+       VUM.unsafeWrite posns' particleNumber pos
+       VUM.unsafeWrite lengths' cellNumber (pos + 1)
        return ())
 
-  lengths <- VU.unsafeFreeze lengths'
   posns <- VU.unsafeFreeze posns'
+  lengths <- VU.unsafeFreeze lengths'
 
   -- Starting positions for cells inside cell array
   let !starts = VU.prescanl' (+) 0 lengths
 
   -- Calculate indices for particles inside sorted grand vector of
-  -- cell contents
+  -- cell contents (inverse mapping index)
   sortedIds' <- VUM.replicate particleCount 0
   iforM_ classes (\(particleNumber, cellNumber) -> do
        let i = (starts VU.! cellNumber) + (posns VU.! particleNumber)
