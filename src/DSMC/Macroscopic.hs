@@ -14,6 +14,8 @@ module DSMC.Macroscopic
     ( MacroSamples
     , initializeSamples
     , updateSamples
+    , MacroSamplingMonad
+    , SamplingOptions(..)
     )
 
 where
@@ -21,6 +23,7 @@ where
 import Prelude hiding (Just, Nothing, Maybe)
 
 import Control.Monad.ST
+import Control.Monad.Trans.Reader
 
 import Data.Strict.Maybe
 
@@ -35,6 +38,8 @@ import DSMC.Util.Vector
 
 -- | Macroscopic parameters calculated in every cell: particle count,
 -- mean absolute velocity, mean square of thermal velocity.
+--
+-- Note the lack of root on thermal velocity!
 type MacroParameters = (Int, Vec3, Double)
 
 
@@ -43,9 +48,10 @@ type MacroParameters = (Int, Vec3, Double)
 -- step.
 --
 -- We store samples for the whole domain linearly for consecutive time
--- steps, so if there're @N@ cells and @M@ time steps, the size of
--- array is @N*M@, where first N elements store samples from the first
--- time step, next N elements store samples from the second etc.
+-- steps, so if there're @N@ cells and @M@ time steps for averaging,
+-- the size of array is @N*M@, where first N elements store samples
+-- from the first time step, next N elements store samples from the
+-- second etc.
 --
 -- Parameters sampled in @i@-th cell on @j@-th step are stored under
 -- index @j*N+i@.
@@ -57,6 +63,20 @@ type MacroParameters = (Int, Vec3, Double)
 type MacroSamples = VU.Vector MacroParameters
 
 
+-- | Monad which stores options of macroscopic sampling.
+--
+-- We use this to make sure that only safe values for cell count and
+-- time steps are used in 'updateSamples' and 'averageSamples' (that
+-- may otherwise cause unbounded access errors).
+type MacroSamplingMonad = Reader SamplingOptions
+
+
+data SamplingOptions = SamplingOptions { _sorting :: (Int, Classifier)
+                                       , _indexer :: Int -> Point
+                                       , _averagingSteps :: Int
+                                       }
+
+
 -- | Parameters in empty cell.
 emptySample :: MacroParameters
 emptySample = (0, (0, 0, 0), 0)
@@ -66,43 +86,40 @@ emptySample = (0, (0, 0, 0), 0)
 initializeSamples :: Int
                   -- ^ Cell count.
                   -> Int
-                  -- ^ For how many time steps to collect samples.
+                  -- ^ Averaging steps.
                   -> MacroSamples
 initializeSamples cellCount ts = VU.replicate (ts * cellCount) emptySample
 
 
 -- | Gather samples from ensemble.
 --
--- Not that bounds are not checked.
-updateSamples :: Monad m =>
-                 Int
+-- Bounds are not checked!
+updateSamples :: Int
               -- ^ Index of current time step, with 0 being the step
               -- when first sample is gathered.
-              -> (Int, Classifier)
-              -- ^ Cell count and classifier.
               -> Ensemble
               -> MacroSamples
               -- ^ Current sample information to be updated, if
               -- there's any.
-              -> m MacroSamples
-updateSamples n sorting@(cellCount, _) ens oldSamples =
-    let
-        !sorted = sortParticles sorting ens
-        -- Starting index for current step in grand vector of samples
-        !stepStart = n * cellCount
-    in return $ runST $ do
-        -- Sampling results from current step
-      !stepSamples <- R.computeP $
-                      cellMap (\_ c -> sampleMacroscopic c) sorted
+              -> MacroSamplingMonad MacroSamples
+updateSamples n ens oldSamples = do
+  !sorting@(cellCount, _) <- asks _sorting
+  let !sorted = sortParticles sorting ens
+      -- Starting index for current step in grand vector of samples
+      !stepStart = n * cellCount
+  return $ runST $ do
+    -- Sampling results from current step
+    !stepSamples <- R.computeP $
+                    cellMap (\_ c -> sampleMacroscopic c) sorted
 
-      samples' <- VU.unsafeThaw oldSamples
-      iforM_ (R.toUnboxed $ stepSamples)
-                 (\(i, macroParams) -> do
-                    VUM.write samples' (stepStart + i) macroParams
-                    return ())
-      samples <- VU.unsafeFreeze samples'
+    samples' <- VU.unsafeThaw oldSamples
+    iforM_ (R.toUnboxed $ stepSamples)
+               (\(i, macroParams) -> do
+                  VUM.write samples' (stepStart + i) macroParams
+                  return ())
+    samples <- VU.unsafeFreeze samples'
 
-      return samples
+    return samples
 
 
 -- | Sample macroscopic values in a cell.
