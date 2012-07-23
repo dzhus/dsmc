@@ -15,7 +15,7 @@ module DSMC.Macroscopic
     , initializeSamples
     , updateSamples
     , MacroSamplingMonad
-    , SamplingOptions(..)
+    , MacroSamplingOptions(..)
     )
 
 where
@@ -75,7 +75,7 @@ type MacroSamples = VU.Vector MacroParameters
 -- time steps are used in 'updateSamples' and 'averageSamples' (that
 -- may otherwise cause unbounded access errors).
 type MacroSamplingMonad =
-    StateT (Maybe (Int, MacroSamples)) (Reader SamplingOptions)
+    StateT (Maybe (Int, MacroSamples)) (Reader MacroSamplingOptions)
 
 
 -- | Options for macroscopic sampling: uniform grid and averaging
@@ -101,28 +101,30 @@ initializeSamples :: Int
 initializeSamples cellCount ts = VU.replicate (ts * cellCount) emptySample
 
 
--- | Gather samples from ensemble.
+-- | Gather samples from ensemble. Return True if sampling is
+-- finished, False otherwise.
 updateSamples :: Ensemble
               -> MacroSamplingMonad Bool
 updateSamples ens = do
   samples <- get
 
-  !sorting@(cellCount, _) <- lift $ asks _sorting
+  sorting@(cellCount, _) <- lift $ asks _sorting
 
   maxSteps <- lift $ asks _averagingSteps
 
-  let !(n, oldSamples) =
+  let (n, oldSamples) =
           case samples of
             Nothing -> (maxSteps, initializeSamples cellCount maxSteps)
+            -- Just (0, _) -> error
             Just o -> o
       -- Sort particles into macroscopic cells for sampling
-      !sorted = sortParticles sorting ens
+      sorted = sortParticles sorting ens
       -- Starting index for current step in grand vector of samples
-      !stepStart = (maxSteps - n) * cellCount
+      stepStart = (maxSteps - n) * cellCount
       -- Update samples vector
-      !newSamples = runST $ do
+      newSamples = runST $ do
         -- Sampling results from current step
-        !stepSamples <- R.computeP $
+        stepSamples <- R.computeP $
                         cellMap (\_ c -> sampleMacroscopic c) sorted
 
         samples' <- VU.unsafeThaw oldSamples
@@ -132,9 +134,9 @@ updateSamples ens = do
                       return ())
         VU.unsafeFreeze samples'
   -- Update state of sampling process
-  put $ Just (n + 1, newSamples)
+  put $ Just (n - 1, newSamples)
 
-  return $ n + 1 == maxSteps
+  return $ (n - 1) == 0
 
 -- | Sample macroscopic values in a cell.
 sampleMacroscopic :: Maybe CellContents -> MacroParameters
