@@ -38,6 +38,7 @@ import Control.Monad.ST
 
 import Debug.Trace
 
+
 -- | Sequential action to move particles and consider particle-body
 -- collisions.
 reflect :: GenST s
@@ -64,6 +65,8 @@ reflect g body dt reflector ens = do
       _ -> return $ movedPcl
 
 
+-- | Set of seeds which preserve PRNG states between runs of parallel
+-- stochastic process sampling.
 type GlobalSeeds = [Seed]
 
 
