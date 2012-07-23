@@ -26,7 +26,7 @@ module DSMC.Cells
 
 where
 
-import Prelude hiding (Just, Nothing, Maybe, fst)
+import Prelude hiding (Just, Nothing, Maybe)
 
 import Control.Monad.ST
 
