@@ -8,14 +8,18 @@ We use regular spatial grid and time averaging for sampling. Sampling
 should start after particle system has reached steady state. Samples
 are then collected in each cell for a certain number of time steps.
 
+Sampling is performed in 'MacroSamplingMonad' to ensure that no wrong
+parameters get passed to sample collecting routines.
+
 -}
 
 module DSMC.Macroscopic
     ( MacroSamples
-    , initializeSamples
-    , updateSamples
+    -- * Macroscopic sampling monad
     , MacroSamplingMonad
     , MacroSamplingOptions(..)
+    , startMacroSampling
+    , updateSamples
     )
 
 where
@@ -92,6 +96,13 @@ emptySample :: MacroParameters
 emptySample = (0, (0, 0, 0), 0)
 
 
+-- | Run 'MacroSamplingMonad' action with given sampling options.
+startMacroSampling :: MacroSamplingMonad r -> 
+                      MacroSamplingOptions -> 
+                     (r, Maybe (Int, MacroSamples))
+startMacroSampling f opts = runReader (runStateT f Nothing) opts
+
+
 -- | Create empty 'MacroSamples' array.
 initializeSamples :: Int
                   -- ^ Cell count.
@@ -130,7 +141,7 @@ updateSamples ens = do
         samples' <- VU.unsafeThaw oldSamples
         iforM_ (R.toUnboxed $ stepSamples)
                    (\(i, macroParams) -> do
-                      VUM.write samples' (stepStart + i) macroParams
+                      VUM.unsafeWrite samples' (stepStart + i) macroParams
                       return ())
         VU.unsafeFreeze samples'
   -- Update state of sampling process
