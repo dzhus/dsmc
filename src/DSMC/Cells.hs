@@ -82,6 +82,7 @@ getCell !(Cells ens _ starts lengths) !n =
     case (lengths VU.! n) of
       0 -> Nothing
       cl -> Just $ VU.slice (starts VU.! n) cl ens
+{-# INLINE getCell #-}
 
 
 -- | Map a function over cell indices and contents of every cell.

@@ -43,6 +43,9 @@ import DSMC.Util.Vector
 -- | Macroscopic parameters calculated in every cell: particle count,
 -- mean absolute velocity, mean square of thermal velocity.
 --
+-- These are then post-processed into number density, flow velocity,
+-- pressure and translational temperature.
+--
 -- Note the lack of root on thermal velocity!
 type MacroParameters = (Double, Vec3, Double)
 
@@ -129,7 +132,7 @@ updateSamples ens =
           stepSamples = cellMap (\_ c -> sampleMacroscopic c weight) sorted
        -- Add samples from current step to all sum of samples collected so
        -- far
-      !newSamples <- R.computeP $ 
+      !newSamples <- R.computeP $
                      R.zipWith addCellParameters oldSamples stepSamples
 
       -- Update state of sampling process
