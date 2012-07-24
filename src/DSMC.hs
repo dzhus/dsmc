@@ -13,9 +13,7 @@ module DSMC
 where
 
 import Control.Monad
-import Control.Monad.Trans.Reader
 import Control.Monad.Primitive (PrimMonad)
-import Control.Monad.Trans.State.Strict
 
 import Data.Functor
 
@@ -32,7 +30,7 @@ import DSMC.Domain
 import DSMC.Macroscopic
 import DSMC.Particles
 import DSMC.Surface
-import DSMC.Traceables
+import DSMC.Traceables hiding (trace)
 import DSMC.Types
 import DSMC.Util
 
@@ -99,6 +97,9 @@ simulate :: PrimMonad m =>
          -> Flow
          -> Time
          -- ^ Time step.
+         -> Bool
+         -- ^ If true, start with empty domain. Add initial particle
+         -- distribution to the domain otherwise.
          -> Double
          -- ^ Source reservoir extrusion.
          -> Double
@@ -112,7 +113,7 @@ simulate :: PrimMonad m =>
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
          -> m Ensemble
-simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
+simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
     let
         -- Simulate evolution of the particle system for one time
         -- step, updating seeds used for sampling stochastic
@@ -122,14 +123,16 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
              -> m (Ensemble, GlobalSeeds, DomainSeeds)
         step (ens, gseeds, dseeds) =
             do
-              let -- Inject new particles
-                  !(e, dseeds') =
-                      openBoundaryInjection dseeds domain ex flow ens
+              let
+                  -- Inject new particles
+                  (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
                   -- Lagrangian step
-                  !(e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
+                  (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
+              
               -- Filter out particles which left the domain
-              !e'' <- Debug.Trace.trace (show $ R.extent e') clipToDomain domain e'
-              return $! Debug.Trace.trace ("Now: " ++ (show $ R.extent e'')) (e'', gseeds', dseeds')
+              e'' <- Debug.Trace.trace (show $ R.extent e') clipToDomain domain e'
+              
+              return $! (e'', gseeds', dseeds')
 
         macroSubdiv :: UniformGrid
         macroSubdiv = UniformGrid domain mx my mz
@@ -143,9 +146,9 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
         -- correspond to steady regime.
         stabilized :: Ensemble -> Ensemble -> Bool
         stabilized ens prevEns =
-            ((abs $
-              (fromIntegral $ ensembleSize ens) /
-              (fromIntegral $ ensembleSize prevEns)) - 1) < sepsilon
+            (abs $
+             ((fromIntegral $ ensembleSize ens) /
+              (fromIntegral $ ensembleSize prevEns) - 1)) < sepsilon
 
         -- Helper which actually runs simulation and collects
         -- macroscopic data until enough samples in steady state are
@@ -173,8 +176,15 @@ simulate domain body flow dt ex sepsilon ssteps (mx, my, mz) gsplit =
       s4 <- create >>= save
       s5 <- create >>= save
       s6 <- create >>= save
-      return $ 
-             runReader 
-             (evalStateT 
-              (sim1 (emptyEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False) S.Nothing)
-             macroOpts
+
+      startEnsemble <- if emptyStart 
+                       then return emptyEnsemble
+                       else do
+                         -- Forget the initial sampling seed
+                         r <- create >>= save >>= 
+                              initializeParticles domain flow body
+                         return $ fst r
+
+      return $ fst $ startMacroSampling 
+                 (sim1 (startEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False)
+                 macroOpts
