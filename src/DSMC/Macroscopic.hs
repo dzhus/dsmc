@@ -39,6 +39,7 @@ import DSMC.Cells
 import DSMC.Particles
 import DSMC.Util.Vector
 
+
 -- | Macroscopic parameters calculated in every cell: particle count,
 -- mean absolute velocity, mean square of thermal velocity.
 --
@@ -134,7 +135,7 @@ updateSamples ens =
       -- Update state of sampling process
       put $ Just (n - 1, newSamples)
 
-      return $ (n - 1) == 0
+      return (n == 0)
 
 -- | Sample macroscopic values in a cell.
 sampleMacroscopic :: Maybe CellContents
