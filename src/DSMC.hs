@@ -130,9 +130,9 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
                   (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
               
               -- Filter out particles which left the domain
-              e'' <- Debug.Trace.trace (show $ R.extent e') clipToDomain domain e'
+              e'' <- clipToDomain domain e'
               
-              return $! (e'', gseeds', dseeds')
+              return $! (trace (show $ R.extent e'') e'', gseeds', dseeds')
 
         macroSubdiv :: UniformGrid
         macroSubdiv = UniformGrid domain mx my mz
