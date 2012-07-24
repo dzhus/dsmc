@@ -1,15 +1,18 @@
 {-# LANGUAGE BangPatterns #-}
 
--- | Body compositions for which particle trajectory intersections
--- can be calculated.
+{-|
+
+Ray-casting routines for constructive solid geometry.
+
+This module provides constructors for complex bodies as well as
+routines to compute intersections of such bodies with ray. In DSMC it
+is used to calculate points at which particles hit the body surface.
+
+-}
 
 module DSMC.Traceables
-    ( -- * Traces
-      HitPoint(..)
-    , hitPoint
-    , trace
-    -- * Traceable bodies
-    , Body
+    ( -- * Bodies
+      Body
     -- ** Primitives
     , plane
     , sphere
@@ -19,6 +22,12 @@ module DSMC.Traceables
     , intersect
     , unite
     , complement
+    -- * Ray casting
+    , HitPoint(..)
+    , hitPoint
+    , HitSegment
+    , Trace
+    , trace
     )
 
 where
@@ -35,35 +44,42 @@ import DSMC.Util
 import DSMC.Util.Vector
 
 
-
--- | Trace of a linearly-moving particle on a primitive is the time
--- interval during which particle is considered to be inside the
--- primitive.
+-- | Time when particle hits the surface with normal at the hit point.
+-- If hit is in infinity, then normal is Nothing.
 --
--- >                       * - particle
+-- Note that this datatype is strict only on first argument: we do not
+-- compare normals when classifying traces.
+data HitPoint = HitPoint !Double (Maybe Vec3)
+                deriving (Eq, Ord, Show)
+
+
+-- | A segment on time line when particle is inside the body.
+--
+-- Using strict tuple performs better: 100 traces for 350K
+-- particles perform roughly 7s against 8s with common datatypes.
+type HitSegment = (Pair HitPoint HitPoint)
+
+
+-- | Trace of a linearly-moving particle on a body is a list of time
+-- segments/intervals during which the particle is inside the body.
+--
+-- >                       # - particle
 -- >                        \
 -- >                         \
 -- >                          o------------
--- >                      ---/ =           \---
--- >                    -/      =              \-
--- >                   /         =               \
--- >                  (           =  - trace      )
--- >                   \           =             /
--- >                    -\          =          /-
--- >       primitive -  ---\         =     /---
+-- >                      ---/ *           \---
+-- >                    -/      *              \-
+-- >                   /         *               \
+-- >                  (           *  - trace      )
+-- >                   \           *             /
+-- >                    -\          *          /-
+-- >       primitive -  ---\         *     /---
 -- >                          --------o----
 -- >                                   \
 -- >                                    \
 -- >                                    _\/
 -- >                                      \
 --
--- We consider only primitives defined by quadratic or linear
--- surfaces. Thus trace may contain a single segment, or a single
--- half-interval, or two half-intervals. Ends of segments or intervals
--- are calculated by intersecting the trajectory ray of a particle and
--- the surface of the primitive. This may be done by substituting the
--- equation of trajectory @X(t) = X_o + V*t@ into the equation which
--- defines the surface and solving it for @t@.
 --
 -- For example, since a ray intersects a plane only once, a halfspace
 -- primitive defined by this plane results in a half-interval trace of
@@ -72,7 +88,7 @@ import DSMC.Util.Vector
 -- >                                          /
 -- >                                         /
 -- >                                        /
--- >              *------------------------o=================>
+-- >              #------------------------o*****************>
 -- >              |                       /                  |
 -- >           particle                  /            goes to infinity
 -- >                                    /
@@ -80,20 +96,56 @@ import DSMC.Util.Vector
 -- >                                  /
 -- >                                 / - surface of halfspace
 --
--- Using strict tuple performs better: 100 traces for 350K
--- particles perform roughly 7s against 8s with common datatypes.
-type Trace = [HitSegment]
-
--- | A segment on time line when particle is inside the body.
-type HitSegment = (Pair HitPoint HitPoint)
-
--- | Time when particle hits the surface, along with normal at hit
--- point. If hit is in infinity, then normal is Nothing.
+-- Ends of segments or intervals are calculated by intersecting the
+-- trajectory ray of a particle and the surface of the primitive. This
+-- may be done by substituting the equation of trajectory @X(t) = X_o
+-- + V*t@ into the equation which defines the surface and solving it
+-- for @t@. If the body is a composition, traces from primitives are
+-- then classified according to operators used to define the body
+-- (union, intersection or complement).
 --
--- Note that this datatype is strict only on first argument: we do not
--- compare normals when classifying traces.
-data HitPoint = HitPoint !Double (Maybe Vec3)
-                deriving (Eq, Ord, Show)
+-- Although only convex primitives are used in current implementation,
+-- compositions may result in concave bodies, which is why trace is
+-- defined as a list of segments.
+--
+--
+-- In this example, body is an intersection of a sphere and sphere
+-- complement:
+-- 
+-- >                                /|\
+-- >                                 |
+-- >                                 |
+-- >                                 |
+-- >                   -----------   |
+-- >              ----/           \--o-
+-- >            -/                   * \-
+-- >          -/               hs2 - *   \
+-- >        -/                       * ---/
+-- >       /                         o/
+-- >      /                        -/|
+-- >     /                        /  |
+-- >     |                       /   |
+-- >    /                        |   |
+-- >    |                       /    |
+-- >    |                       |    |
+-- >    |                       \    |
+-- >    \                        |   |
+-- >     |                       \   |
+-- >     \                        \  |
+-- >      \                        -\|
+-- >       \                         o\
+-- >        -\                       * ---\
+-- >          -\               hs1 - *   /
+-- >            -\                   * /-
+-- >              ----\           /--o-
+-- >                   -----------   |
+-- >                                 |
+-- >                                 |
+-- >                                 # - particle
+--
+-- If only intersections of concave primitives were allowed, then
+-- trace type might be simplified to be just single 'HitSegment'.
+type Trace = [HitSegment]
 
 
 -- | IEEE positive infinity.
@@ -181,7 +233,7 @@ complement :: Body -> Body
 complement !b = Complement b
 
 
--- | Trace a particle on a body.
+-- | Calculate a trace of a particle on a body.
 trace :: Body -> Particle -> Trace
 {-# INLINE trace #-}
 
@@ -343,9 +395,10 @@ complementTraces [] = [hitN :!: hitP]
 {-# INLINE complementTraces #-}
 
 
--- | If particle has hit the body during last time step, calculate the
--- corresponding 'HitPoint'. Note that time at which hit occured will
--- be negative.
+-- | If the particle has hit the body during last time step, calculate
+-- the first corresponding 'HitPoint'. Note that the time at which the hit
+-- occured will be negative. This is the primary function to calculate
+-- ray-body intersections.
 hitPoint :: Time -> Body -> Particle -> Maybe HitPoint
 hitPoint !dt !b !p =
     let
