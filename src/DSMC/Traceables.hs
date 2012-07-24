@@ -28,6 +28,8 @@ module DSMC.Traceables
     , HitSegment
     , Trace
     , trace
+    -- * Body membership
+    , inside
     )
 
 where
@@ -408,3 +410,13 @@ hitPoint !dt !b !p =
         [] -> Nothing
         (hs:_) -> Just $ fst hs
 {-# INLINE hitPoint #-}
+
+
+-- | True if particle is in inside the body.
+inside :: Body -> Particle -> Bool
+inside !b !(pos, _) = 
+    not $ 
+    null $
+    intersectTraces (trace b (pos, (1, 0, 0)))
+                    [(HitPoint 0 Nothing) :!: (HitPoint 0 Nothing)]
+{-# INLINE inside #-}
