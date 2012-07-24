@@ -130,11 +130,11 @@ pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
 -- | Fill the domain with particles for given flow parameters.
 -- Particles inside the body are removed.
 initializeParticles :: Monad m =>
-                    Domain
-                 -> Flow
-                 -> Body
-                 -> Seed
-                 -> m (Ensemble, Seed)
+                       Domain
+                    -> Flow
+                    -> Body
+                    -> Seed
+                    -> m (Ensemble, Seed)
 initializeParticles d flow body s = 
     let 
         !(res, s') = pureSpawnParticles d flow s
