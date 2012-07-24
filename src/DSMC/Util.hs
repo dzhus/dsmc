@@ -6,6 +6,7 @@
 module DSMC.Util
     ( solveq
     , SquareRoots
+    , fromUnboxed1
     , parMapST
     , purifyRandomST
     , splitIn
@@ -22,6 +23,7 @@ import Control.Parallel.Strategies
 import Data.Strict.Maybe
 import Data.Strict.Tuple
 
+import qualified Data.Array.Repa as R
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
 
@@ -53,6 +55,12 @@ solveq !a !b !c
       r1 =   r - s
       r2 =   r + s
 {-# INLINE solveq #-}
+
+
+-- | Convert between Repa 'R.DIM1'-arrays and unboxed 'VU.Vector's.
+fromUnboxed1 :: (VU.Unbox e) => VU.Vector e -> R.Array R.U R.DIM1 e
+fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
+{-# INLINE fromUnboxed1 #-}
 
 
 -- | Convert ST action with PRNG state into a pure function of seed.

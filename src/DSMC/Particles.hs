@@ -28,6 +28,7 @@ import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
 import DSMC.Types
+import DSMC.Util
 import DSMC.Util.Vector
 
 
@@ -62,11 +63,6 @@ modelConcentration flow = (concentration flow) / (statWeight flow)
 
 -- | Repa array of particles.
 type Ensemble = R.Array R.U R.DIM1 Particle
-
-
--- | Convert between Repa 'R.DIM1'-arrays and unboxed 'VU.Vector's.
-fromUnboxed1 :: VU.Vector Particle -> Ensemble
-fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 
 
 -- | Ensemble with zero particles in it.
