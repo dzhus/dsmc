@@ -14,6 +14,7 @@ module DSMC.Particles
     , Ensemble
     , emptyEnsemble
     , ensembleSize
+    , filterEnsemble
     , printEnsemble
     , fromUnboxed1
     -- * Flows
@@ -87,3 +88,17 @@ printEnsemble :: Ensemble -> IO ()
 printEnsemble particles = do
   VU.forM_ (R.toUnboxed particles)
         (\((x, y, z), (u, v, w)) -> putStrLn $ unwords (map show [x, y, z, u, v, w]))
+
+
+-- | Filter out those particles which do not satisfy the predicate.
+filterEnsemble :: Monad m => (Particle -> Bool) -> Ensemble -> m Ensemble
+filterEnsemble pred' ens =
+    let
+        (R.Z R.:. size) = R.extent ens
+        getter :: Int -> Particle
+        getter !i = (R.!) ens (R.ix1 i)
+        {-# INLINE getter #-}
+        predI :: Int -> Bool
+        predI !i = pred' $ getter i
+    in do
+      return $ R.selectP predI getter size ens
