@@ -137,12 +137,11 @@ initializeParticles :: Monad m =>
                     -> m (Ensemble, Seed)
 initializeParticles d flow body s = 
     let 
-        !(res, s') = pureSpawnParticles d flow s
+        (res, s') = pureSpawnParticles d flow s
         ens = fromUnboxed1 res
     in do
       ens' <- filterEnsemble (not . inside body) ens
-      return (ens', s')
-{-# INLINE initializeParticles #-}
+      return $! (ens', s')
 
 
 -- | Sample new particles in 6 interface domains along each side of
