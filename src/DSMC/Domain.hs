@@ -2,7 +2,7 @@
 
 {-|
 
-Domain operations: defining domains; open boundary conditions &
+Domain operations: defining domains; free flow boundary conditions &
 clipping for DSMC steps.
 
 PRNG required to sample molecular velocities implies monadic interface
@@ -17,7 +17,7 @@ module DSMC.Domain
     , makeDomain
     , clipToDomain
     , openBoundaryInjection
-    , initialParticles
+    , initializeParticles
     , DomainSeeds
     )
 
@@ -25,7 +25,6 @@ where
 
 import Control.Monad.ST
 
-import Control.Parallel.Strategies
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
@@ -33,6 +32,7 @@ import System.Random.MWC
 import System.Random.MWC.Distributions (normal)
 
 import DSMC.Particles
+import DSMC.Traceables
 import DSMC.Util
 import DSMC.Util.Constants
 import DSMC.Util.Vector
@@ -127,14 +127,22 @@ pureSpawnParticles :: Domain
 pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
 
 
--- | Sample initial particles in the domain.
-initialParticles :: Domain
+-- | Fill the domain with particles for given flow parameters.
+-- Particles inside the body are removed.
+initializeParticles :: Monad m =>
+                    Domain
                  -> Flow
+                 -> Body
                  -> Seed
-                 -> Ensemble
-initialParticles d flow g = fromUnboxed1 res
-                            where
-                              (res, _) = pureSpawnParticles d flow g
+                 -> m (Ensemble, Seed)
+initializeParticles d flow body s = 
+    let 
+        !(res, s') = pureSpawnParticles d flow s
+        ens = fromUnboxed1 res
+    in do
+      ens' <- filterEnsemble (not . inside body) ens
+      return (ens', s')
+{-# INLINE initializeParticles #-}
 
 
 -- | Sample new particles in 6 interface domains along each side of
@@ -178,9 +186,10 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
         v = [R.toUnboxed ens]
-        (new, (s1':s2':s3':s4':s5':s6':_)) = unzip $
-                       parMapST (\g d -> spawnParticles d flow g) $
-                       zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
+        (new, (s1':s2':s3':s4':s5':s6':_)) = 
+            unzip $
+            parMapST (\g d -> spawnParticles d flow g) $
+            zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
     in
       (fromUnboxed1 $ VU.concat (new ++ v), (s1', s2', s3', s4', s5', s6'))
 
@@ -189,20 +198,11 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
 clipToDomain :: Monad m => Domain -> Ensemble -> m Ensemble
 clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
     let
-        (R.Z R.:. size) = R.extent ens
-        -- | Get i-th particle from ensemble
-        getter :: Int -> Particle
-        getter !i = (R.!) ens (R.ix1 i)
-        {-# INLINE getter #-}
         -- | Check if particle is in the domain.
-        pred' :: Int -> Bool
-        pred' !i =
-            let
-                ((x, y, z), _) = getter i
-            in
-              xmax >= x && x >= xmin &&
-              ymax >= y && y >= ymin &&
-              zmax >= z && z >= zmin
+        pred' :: Particle -> Bool
+        pred' !((x, y, z), _) =
+            xmax >= x && x >= xmin &&
+            ymax >= y && y >= ymin &&
+            zmax >= z && z >= zmin
         {-# INLINE pred' #-}
-    in do
-      return $ R.selectP pred' getter size ens
+    in filterEnsemble pred' ens
