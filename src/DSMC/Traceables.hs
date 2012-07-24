@@ -413,6 +413,10 @@ hitPoint !dt !b !p =
 
 
 -- | True if particle is in inside the body.
+--
+-- Note that this uses 'trace' internally. A more efficient version
+-- would implement custom membership predicates for all primitives and
+-- use boolean operations to handle compositions.
 inside :: Body -> Particle -> Bool
 inside !b !(pos, _) = 
     not $ 
