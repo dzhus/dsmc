@@ -137,7 +137,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
         macroSubdiv :: UniformGrid
         macroSubdiv = UniformGrid domain mx my mz
 
-        macroOpts = MacroSamplingOptions 
+        macroOpts = MacroSamplingOptions
                     (makeUniformClassifier macroSubdiv)
                     (makeUniformIndexer macroSubdiv)
                     ssteps
