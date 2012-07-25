@@ -22,6 +22,7 @@ library
     DSMC.Surface,
     DSMC.Traceables,
     DSMC.Macroscopic,
+    DSMC.Motion,
     DSMC.Particles,
     DSMC.Util.Constants,
     DSMC.Util.Vector
