@@ -87,7 +87,8 @@ motion gs b dt surf ens =
       (fromUnboxed1 $ VU.concat $ fst <$> v', snd <$> v')
 
 
--- | Perform DSMC simulation.
+-- | Perform DSMC simulation, return final particle distribution and
+-- field of averaged macroscopic parameters.
 simulate :: PrimMonad m =>
             Domain
          -> Body
@@ -109,7 +110,7 @@ simulate :: PrimMonad m =>
          -> Int
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
-         -> m Ensemble
+         -> m (Ensemble, MacroField)
 simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
     let
         -- Simulate evolution of the particle system for one time
@@ -125,10 +126,10 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
                   (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
                   -- Lagrangian step
                   (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
-              
+
               -- Filter out particles which left the domain
               e'' <- clipToDomain domain e'
-              
+
               return $! (trace (show $ R.extent e'') e'', gseeds', dseeds')
 
         macroSubdiv :: UniformGrid
@@ -153,7 +154,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
         sim1 :: (Ensemble, ParallelSeeds, DomainSeeds)
              -> Bool
              -- ^ True if steady regime has been reached.
-             -> MacroSamplingMonad Ensemble
+             -> MacroSamplingMonad (Ensemble, MacroField)
         sim1 !oldState@(ens, _, _) !steady = do
             !newState@(ens', _, _) <- step oldState
             let !newSteady = steady || stabilized ens' ens
@@ -164,7 +165,9 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
 
             case enough of
               False -> sim1 newState newSteady
-              True -> return ens'
+              True -> do
+                field <- getField
+                return (ens', field)
     in do
       gs <- replicateM gsplit $ create >>= save
       s1 <- create >>= save
@@ -174,14 +177,14 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
       s5 <- create >>= save
       s6 <- create >>= save
 
-      startEnsemble <- if emptyStart 
+      startEnsemble <- if emptyStart
                        then return emptyEnsemble
                        else do
                          -- Forget the initial sampling seed
-                         r <- create >>= save >>= 
+                         r <- create >>= save >>=
                               initializeParticles domain flow body
                          return $ fst r
 
-      return $ fst $ startMacroSampling 
+      return $ fst $ startMacroSampling
                  (sim1 (startEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False)
                  macroOpts
