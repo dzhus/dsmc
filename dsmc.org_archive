@@ -120,6 +120,94 @@ Archived entries from file /home/dzhus/projects/dsmc/dsmc.org
   вычисляем *максимальное время* (в какую успели глубже всего
   погрузиться), отскок от соответствующей.
   *Дополнение*: 
+* DONE openBoundaryInjection
+  CLOSED: [2012-06-05 Вт. 13:57]
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 18:54
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Параллелизм
+  :ARCHIVE_CATEGORY: dsmc
+  :ARCHIVE_TODO: DONE
+  :END:
+  Шесть подобластей можно наполнять данными параллельно!
+* Осреднение
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 18:56
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Семплирование макропараметров
+  :ARCHIVE_CATEGORY: dsmc
+  :END:
+  Придётся хранить семплы со всех ячеек для некоторого количества
+  шагов, в течение которых накапливается статистика, а потом
+  осреднять. Семплы тоже будем хранить в одном супер-векторе.
+
+* TODO Разобраться с normal для цилиндра
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 19:03
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Boundary conditions/Issues
+  :ARCHIVE_CATEGORY: dsmc
+  :ARCHIVE_TODO: TODO
+  :END:
+  Почему-то нужно normalize (хотя вроде по формулам уже должна
+  получаться единичная длина)
+
+* DONE Разобраться с normal для цилиндра
+  CLOSED: [2012-07-25 Ср. 19:03]
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 19:03
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Boundary conditions/Issues
+  :ARCHIVE_CATEGORY: dsmc
+  :ARCHIVE_TODO: DONE
+  :END:
+  Почему-то нужно normalize (хотя вроде по формулам уже должна
+  получаться единичная длина)
+
+  Всё там правильно.
+
+* DONE Typesafe cell indexing
+  CLOSED: [2012-07-25 Ср. 19:10]
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 19:10
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Прочие задачи
+  :ARCHIVE_CATEGORY: dsmc
+  :ARCHIVE_TODO: DONE
+  :END:
+  (Int -> Point), Classifier и размер сетки должны проверяться на
+  уровне типов
+
+  Частично решается использованием своей монады, в которой будет
+  сохраняться контекст разбиения.
+
+* DONE Выполнять предварительную обработку тел
+  CLOSED: [2012-07-02 Пн. 15:12]
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 19:10
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Прочие задачи
+  :ARCHIVE_CATEGORY: dsmc
+  :ARCHIVE_TODO: DONE
+  :END:
+  - [X] force normalization for normal vectors
+* DONE Domain implementation
+  CLOSED: [2012-06-05 Вт. 01:30]
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2012-07-25 Ср. 19:10
+  :ARCHIVE_FILE: ~/projects/dsmc/dsmc.org
+  :ARCHIVE_OLPATH: Прочие задачи
+  :ARCHIVE_CATEGORY: dsmc
+  :ARCHIVE_TODO: DONE
+  :END:
+  Use message-passing instead of pattern-matching?
+
+
+
+
+
+
+
 
 
 
