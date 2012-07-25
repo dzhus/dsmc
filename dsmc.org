@@ -140,6 +140,29 @@
 
      measured 23.07 1KK@64K — no profit
 * Parallelism
+** TODO Stochastic parallelism
+*** Curent approach
+    
+    parMapST
+
+*** Possible solutions
+    1. Split & Combine typeclasses for containers with data which may
+       be splitted, processed in parallel using given seeds, and then
+       combined back together. Somehow we need to enforce split &
+       combine coherence for Split and Combine instances (perhaps by
+       creating a class which would establish a contract both for
+       splitting the source data and combining the results).
+
+       This doesn't help for openBoundaryInjection case, when source
+       data is always splitted in 6 subchunks (more complex
+       partitioning schemes will hardly be efficient or more
+       convenient).
+
+    2. Repa may be extended to include Stochastic hints which would
+       allow to perform stochastic mapping (perhaps in special monad
+       which keeps track of seeds being used for sampling). We need to
+       somehow get ace
+
 ** MAYBE injection || macroscopic sampling
    Boundary injection is currently hardwired to use maximum of 6
    threads (for each of interface domains). On 4-core system this
@@ -155,5 +178,10 @@
 
    May be linked with Control.Parallel.Stochastic to perform load
    balancing.
-   
+** MAYBE reducers
+
+   http://hackage.haskell.org/package/reducers
+
+   How to let (Reducer c m) know that we're building with rpar in Eval
+   monad?
 * Other issues
