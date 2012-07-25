@@ -174,15 +174,16 @@ data Body = Plane !Vec3 !Double
           -- ^ Halfspace with normalized outward normal and distance
           -- from origin.
           | Sphere !Vec3 !Double
+          -- ^ Sphere defined by center and radius.
           | Cylinder !Vec3 !Point !Double
           -- ^ Cylinder with normalized axis vector, point on axis and
           -- radius.
           | Cone !Vec3 !Point !Double !Matrix !Double !Double
-          -- ^ Cone given by axis direction, vertex and angle h
-          -- between axis and outer edge (in radians).
+          -- ^ Cone defined by axis direction, vertex and cosine to
+          -- angle h between axis and outer edge (in radians).
           --
           -- Additionally transformation matrix $n * n - cos^2 h$,
-          -- angle tangent and odelta are stored for intersection
+          -- tangent of angle and odelta are stored for intersection
           -- calculations.
           | Union !Body !Body
           | Intersection !Body !Body
@@ -218,7 +219,7 @@ cone a o h =
         ta = tan $ h
         odelta = n .* o
     in
-      Cone n o h m ta odelta
+      Cone n o h' m ta odelta
 
 -- | Intersection of two bodies.
 intersect :: Body -> Body -> Body
@@ -268,10 +269,9 @@ trace !(Sphere c r) !(pos, v) =
 
 trace !(Cylinder n c r) !(pos, v) =
     let
-        r2 = r * r
         d = (pos <-> c) >< n
         e = v >< n
-        roots = solveq (e .* e) (d .* e * 2) (d .* d - r2)
+        roots = solveq (e .* e) (d .* e * 2) (d .* d - r * r)
         normal u = normalize $ h <-> (n .^ (h .* n))
             where h = u <-> c
     in
@@ -413,14 +413,23 @@ hitPoint !dt !b !p =
 
 
 -- | True if particle is in inside the body.
---
--- Note that this uses 'trace' internally. A more efficient version
--- would implement custom membership predicates for all primitives and
--- use boolean operations to handle compositions.
 inside :: Body -> Particle -> Bool
-inside !b !(pos, _) = 
-    not $ 
-    null $
-    intersectTraces (trace b (pos, (1, 0, 0)))
-                    [(HitPoint 0 Nothing) :!: (HitPoint 0 Nothing)]
 {-# INLINE inside #-}
+
+inside !(Plane n d) !(pos, _) = (pos .* n - d) < 0
+
+inside !(Sphere c r) !(pos, _) = (norm $ pos <-> c) < r
+
+inside !(Cylinder n c r) !(pos, _) = 
+    (norm $ h <-> (n .^ (h .* n))) < r
+    where
+      h = pos <-> c
+
+inside !(Cone n c a _ _ _) !(pos, _) =
+    (n .* (normalize $ pos <-> c)) > a
+
+inside !(Intersection b1 b2) !p = inside b1 p && inside b2 p
+
+inside !(Union b1 b2) !p = inside b1 p || inside b2 p
+
+inside !(Complement b) !p = not $ inside b p
