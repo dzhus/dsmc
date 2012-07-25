@@ -15,6 +15,7 @@ parameters get passed to sample collecting routines.
 
 module DSMC.Macroscopic
     ( MacroSamples
+    , MacroField
     -- * Macroscopic sampling monad
     , MacroSamplingMonad
     , MacroSamplingOptions(..)
@@ -57,6 +58,11 @@ type MacroParameters = (Double, Vec3, Double)
 -- built as a sum of vectors @V1, .. VM@, where @Vi@ is vector of
 -- parameters sampled on @i@-th time step divided by @M@.
 type MacroSamples = R.Array R.U R.DIM1 MacroParameters
+
+
+-- | Array of central points of grid cells with averaged macroscopic
+-- parameters.
+type MacroField = R.Array R.U R.DIM1 (Point, MacroParameters)
 
 
 -- | Monad which keeps track of sampling process data and stores
