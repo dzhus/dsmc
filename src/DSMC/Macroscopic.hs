@@ -21,6 +21,7 @@ module DSMC.Macroscopic
     , MacroSamplingOptions(..)
     , startMacroSampling
     , updateSamples
+    , getField
     )
 
 where
@@ -86,6 +87,20 @@ data MacroSamplingOptions =
                          , _indexer :: Int -> Point
                          , _averagingSteps :: Int
                          }
+
+
+-- TODO: Error if sampling is not finished?
+getField :: MacroSamplingMonad MacroField
+getField = do
+  (cellCount, _) <- lift $ asks _sorting
+  indexer <- lift $ asks _indexer
+  res <- get
+  case res of
+    Just (0, samples) -> do
+             let centralPoints = R.fromFunction (R.ix1 $ cellCount)
+                                 (\(R.Z R.:. cellNumber) -> indexer cellNumber)
+             R.computeP $ R.zipWith (,) centralPoints samples
+    _ -> error "Cannot fetch macroscopic field before sampling is finished."
 
 
 -- | Parameters in empty cell.
