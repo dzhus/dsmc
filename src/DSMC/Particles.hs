@@ -16,7 +16,6 @@ module DSMC.Particles
     , ensembleSize
     , filterEnsemble
     , printEnsemble
-    , fromUnboxed1
     -- * Flows
     , Flow(..)
     , modelConcentration
