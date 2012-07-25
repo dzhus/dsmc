@@ -18,6 +18,7 @@ module DSMC.Domain
     , clipToDomain
     , openBoundaryInjection
     , initializeParticles
+    , freeVolume
     , DomainSeeds
     )
 
@@ -89,7 +90,7 @@ getCenter (Domain xmin xmax ymin ymax zmin zmax) =
 {-# INLINE getCenter #-}
 
 
--- | Measure volume of domain.
+-- | Volume of domain.
 volume :: Domain -> Double
 volume !(Domain xmin xmax ymin ymax zmin zmax) =
     (xmax - xmin) * (ymax - ymin) * (zmax - zmin)
@@ -135,8 +136,8 @@ initializeParticles :: Monad m =>
                     -> Body
                     -> Seed
                     -> m (Ensemble, Seed)
-initializeParticles d flow body s = 
-    let 
+initializeParticles d flow body s =
+    let
         (res, s') = pureSpawnParticles d flow s
         ens = fromUnboxed1 res
     in do
@@ -185,7 +186,7 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
         d5 = makeDomain (cx, cy, cz - (h + ex) / 2) w l ex
         d6 = makeDomain (cx, cy, cz + (h + ex) / 2) w l ex
         v = [R.toUnboxed ens]
-        (new, (s1':s2':s3':s4':s5':s6':_)) = 
+        (new, (s1':s2':s3':s4':s5':s6':_)) =
             unzip $
             parMapST (\g d -> spawnParticles d flow g) $
             zip [d1, d2, d3, d4, d5, d6] [s1, s2, s3, s4, s5, s6]
@@ -205,3 +206,26 @@ clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
             zmax >= z && z >= zmin
         {-# INLINE pred' #-}
     in filterEnsemble pred' ens
+
+
+-- | Volume of a domain unoccupied by a given body.
+--
+-- We use Monte Carlo method to calculate the approximate body volume
+-- to then subtract it from the overall domain volume.
+freeVolume :: Domain 
+           -> Body 
+           -> Int 
+           -- ^ Use that many points to approximate the fraction of
+           -- domain occupied by body.
+           -> GenST s
+           -> ST s (Double)
+freeVolume d@(Domain xmin xmax ymin ymax zmin zmax) body testPoints g = do
+  points <- VU.replicateM testPoints $ do
+              x <- uniformR (xmin, xmax) g
+              y <- uniformR (ymin, ymax) g
+              z <- uniformR (zmin, zmax) g
+              return $ inside body ((x, y, z), (0, 0, 0))
+  let occupiedPoints = VU.length $ VU.filter id points
+  return $ (volume d) * 
+             (fromIntegral (testPoints - occupiedPoints)) /
+             (fromIntegral testPoints)
