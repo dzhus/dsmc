@@ -41,7 +41,6 @@ import Data.Strict.Maybe
 import Data.Strict.Tuple
 
 import DSMC.Particles
-import DSMC.Types
 import DSMC.Util
 import DSMC.Util.Vector
 

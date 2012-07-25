@@ -27,7 +27,6 @@ where
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
-import DSMC.Types
 import DSMC.Util
 import DSMC.Util.Vector
 

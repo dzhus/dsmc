@@ -26,6 +26,8 @@ where
 
 import Control.Monad.ST
 
+import Control.Parallel.Stochastic
+
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
@@ -34,7 +36,6 @@ import System.Random.MWC.Distributions (normal)
 
 import DSMC.Particles
 import DSMC.Traceables
-import DSMC.Util
 import DSMC.Util.Constants
 import DSMC.Util.Vector
 

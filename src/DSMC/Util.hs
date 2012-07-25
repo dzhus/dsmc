@@ -1,24 +1,20 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Rank2Types #-}
 
--- | Utility functions.
+-- | Utility functions and definitions.
 
 module DSMC.Util
     ( solveq
     , SquareRoots
     , fromUnboxed1
-    , parMapST
-    , purifyRandomST
     , splitIn
     , iforM_
+    , Time
     )
 
 where
 
 import Prelude hiding (Just, Nothing, Maybe, fst)
-
-import Control.Monad.ST
-import Control.Parallel.Strategies
 
 import Data.Strict.Maybe
 import Data.Strict.Tuple
@@ -26,8 +22,6 @@ import Data.Strict.Tuple
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
-
-import System.Random.MWC
 
 
 -- | Results of solving a quadratic equation.
@@ -63,25 +57,6 @@ fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 {-# INLINE fromUnboxed1 #-}
 
 
--- | Convert ST action with PRNG state into a pure function of seed.
-purifyRandomST :: (forall s.GenST s -> ST s a) -> Seed -> (a, Seed)
-purifyRandomST f seed = runST $ do
-                          g <- restore seed
-                          r <- f g
-                          g' <- save g
-                          return (r, g')
-{-# INLINE purifyRandomST #-}
-
-
--- | 'parMap' with 'rpar' over list of data and initial seeds using ST
--- action which takes single PRNG state; produce list of results and
--- used seeds.
-parMapST :: (forall s.GenST s -> a -> ST s b) -> [(a, Seed)] -> [(b, Seed)]
-parMapST f =
-    parMap rpar (\(p, seed) -> purifyRandomST (`f` p) seed)
-{-# INLINE parMapST #-}
-
-
 -- | Split vector into list of n subvectors.
 splitIn :: VG.Vector v a => v a -> Int -> [v a]
 splitIn ens n =
@@ -107,3 +82,7 @@ iforM_ :: (Monad m, VU.Unbox a) =>
        -> m ()
 iforM_ v = VU.forM_ (VU.imap (,) v)
 {-# INLINE iforM_ #-}
+
+
+-- | Time in seconds.
+type Time = Double

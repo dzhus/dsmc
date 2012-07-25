@@ -21,13 +21,13 @@ library
     DSMC.Domain,
     DSMC.Surface,
     DSMC.Traceables,
-    DSMC.Types,
     DSMC.Macroscopic,
     DSMC.Particles,
     DSMC.Util.Constants,
     DSMC.Util.Vector
 
   other-modules:
+    Control.Parallel.Stochastic,
     DSMC.Util
 
   build-depends:

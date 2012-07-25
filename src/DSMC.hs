@@ -5,6 +5,7 @@
 Simulation procedures.
 
 -}
+
 module DSMC
     ( motion
     , simulate
@@ -14,6 +15,8 @@ where
 
 import Control.Monad
 import Control.Monad.Primitive (PrimMonad)
+
+import Control.Parallel.Stochastic
 
 import Data.Functor
 
@@ -31,7 +34,6 @@ import DSMC.Macroscopic
 import DSMC.Particles
 import DSMC.Surface
 import DSMC.Traceables hiding (trace)
-import DSMC.Types
 import DSMC.Util
 
 import Control.Monad.ST
@@ -65,18 +67,13 @@ reflect g body dt reflector ens = do
       _ -> return $ movedPcl
 
 
--- | Set of seeds which preserve PRNG states between runs of parallel
--- stochastic process sampling.
-type GlobalSeeds = [Seed]
-
-
 -- | Collisionless motion step.
-motion :: GlobalSeeds
+motion :: ParallelSeeds
        -> Body
        -> Time
        -> Surface
        -> Ensemble
-       -> (Ensemble, GlobalSeeds)
+       -> (Ensemble, ParallelSeeds)
 motion gs b dt surf ens =
     let
         vs :: [VU.Vector Particle]
@@ -119,8 +116,8 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
         -- step, updating seeds used for sampling stochastic
         -- processes.
         step :: Monad m =>
-                (Ensemble, GlobalSeeds, DomainSeeds)
-             -> m (Ensemble, GlobalSeeds, DomainSeeds)
+                (Ensemble, ParallelSeeds, DomainSeeds)
+             -> m (Ensemble, ParallelSeeds, DomainSeeds)
         step (ens, gseeds, dseeds) =
             do
               let
@@ -153,7 +150,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
         -- Helper which actually runs simulation and collects
         -- macroscopic data until enough samples in steady state are
         -- collected.
-        sim1 :: (Ensemble, GlobalSeeds, DomainSeeds)
+        sim1 :: (Ensemble, ParallelSeeds, DomainSeeds)
              -> Bool
              -- ^ True if steady regime has been reached.
              -> MacroSamplingMonad Ensemble
