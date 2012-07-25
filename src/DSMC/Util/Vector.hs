@@ -39,11 +39,14 @@ import Prelude hiding (reverse)
 -- | Vector in @R^3@.
 type Vec3 = (Double, Double, Double)
 
+
 -- | Matrix given by its rows.
 type Matrix = (Vec3, Vec3, Vec3)
 
+
 -- | Point in @R^3@.
 type Point = Vec3
+
 
 -- | Add two vectors.
 (<+>) :: Vec3 -> Vec3 -> Vec3
