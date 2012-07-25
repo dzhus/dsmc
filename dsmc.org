@@ -1,125 +1,59 @@
 #+SEQ_TODO: MAYBE TODO IN_PROGRESS | DONE
 
-* Граничные условия на тело
-** Как у нас
-   Считаем время до соударения с плоскостью. Если оно положительная,
-   то точка ещё не долетела. Если отрицательное, то перелёт — нужно
-   вернуть точку в место столкновения и вместо отлёта внутрь за
-   плоскость вернуть её наружу, обратив вдоль нормали вектор скорости.
-   Время домножается на _знак скалярного произведения_ между вектором
-   скорости молекулы и нормалью к поверхности (в противном случае
-   отскочившая частица будет считаться вновь попавшей в поверхность
-   уже с другой стороны — надо учитывать ориентацию плоскости).
-   
-   *Главный инвариант алгоритма* (который нам хотелось бы
-    поддерживать): никакая точка не может быть углублена в тело более,
-    чем на v*dt.
-*** Композиции
-    По расположению и вектору скорости всякой частицы строим прямую.
-    Находим пересечения этой прямой со всеми элементами тела. Выбираем
-    первое пересечение, попадающее в интервал [-dt;0].
+* CSG
 
-    Часть траектории частицы, лежащая внутри какого-либо объекта,
-    обозначается отрезком на действительной прямой (для
-    полупространства — лучом). Полученная структура называется Trace и
-    является списком таких отрезков.
+** Boundary conditions
+    We maintain the main *invariant of algorithm* that no particle may
+    get inside the body deeper than v*dt.
 
-    Trace пересечения объектов — пересечение Trace. Аналогично для
-    объединения и дополнения. Для границ отрезков также указаны
-    нормали соответствующей поверхности в точке возможного соударения.
-    При выполнении операции дополнения эти нормали домножаются на -1.
-**** [/] Проблемы
-     - [ ] Возможен отскок внутрь соседствующего тела. Если делать
-       после hit проверку на ещё одно соударение, есть вероятность
-       зацикливания (если мы попали точно /встык/ пластин)
+    Body is a recursive composition of primitives or other bodies.
 
-       *Решение*: удаляем все частицы, оставшиеся в теле после шага
-       hit. Медленно. А что поделать?
+    For primitives, we construct the trace by substituting an equation
+    of ray into the surface equation, obtaining times when particle
+    hits the surface.
 
-     - [ ] Не бывает ли t в [-dt;0], когда частица вне тела (т. е.
-       вектор скорости и нормаль дают положительное скалярное
-       произведение). После отскока этого не случится, т.к. за
-       отскоком последует шаг move.
+    For compositions, we combine traces from leaves using the
+    composition operator.
 
-       *Решение*: _бывает_, когда первоначальное соударение случилось
-       с нулевым заглублением (то есть частица попала точь-в-точь на
-       плоскость). Тогда удаляясь после отскока, она переходит на
-       расстояние точно dt*v от тела, что приводит к определению
-       нового (уже ложного) соударения и возвращает частицу внутрь
-       тела. Затем она углубляется на шаге move ещё глубже в тело, и
-       очередная проверка столкновения натыкается на нарушенный
-       инвариант.
+*** TODO [1/2] Issues
+    - [ ] For concave objects, particle may end up inside the body
+      after reflection.
 
-       Что делать?
-       1. Проверять угол между скоростью и нормалью. Удовлетворять
-          условию будет лишь малое число частиц и очень редко. Медленно.
+      *Solution*: sample next possible reflection for remaining dt.
 
-       2. Вносить малый ε-шум в положение частицы после отскока.
-          Похожая техника позволит избавиться от необходимости делать
-          collapsePoint (правильное пересечение отрезков в случае,
-          когда результатом является одна точка — при точном
-          попадании).
+    - [X] t may be in [-dt;0] even if particle is *outside* the body.
 
-     - [ ] Иногда появляется частица, скользящая вдоль плоскости. Нормаль
-       перпендикулярна скорости, поэтому она никуда не отскакивает.
-       При этом она может пролетать сквозь другие тела!
+      This _happens_ if particle travels *exactly* dt from its original
+      position to body hit. Then on the next step it will move inside
+      for dt, and reflection will return it to hit point.
 
-*** TODO [1/2] Добавить тела
-    - [X] конус
-    - [ ] парабола
+      *Solution*: this is possible, but is obviously improbable, so we
+      don't bother.
 
-*** TODO Разобраться с normal для цилиндра
-    Почему-то нужно normalize (хотя вроде по формулам уже должна
-    получаться единичная длина)
-** Bird
-** Закиров
-   Строим пересечение луча и кривой второго порядка, получая две точки
-   t (время соударения). Если t ≥ eps (отсечка отрицательных корней),
-   то был удар. Закиров не учитывает соударения частиц до подлёта к
-   телу, поэтому можно сразу построить прямую и найти для неё точку
-   удара. В таком подходе нет итерирования по времени вообще, точки
-   как бы сразу долетают до тела.
-** Как ускорить и улучшить
-   - для тел вводить упрощённый описывающий объём и сначала проверять,
-     попала ли точка в него;
-   - разбивать пространство через octree;
-   - разбивать пространство на адаптивную сетку (также полезно для
-     соударений) и проверять на удары только с поверхностями,
-     попавшими в ячейку сетки
-* Отрисовка тел
-** Как отрисовывать
+**** TODO [1/2] New bodies
+     - [X] cone
+     - [ ] parabole
 
-*** Трассировка лучей
-    Используем тот же код. По вектору нормали плоскости просмотра строим
-    координатную систему, в которой генерируем нужное количество точек
-    по X, Y в заданной плоскости, после чего направляем их вдоль нормали
-    этой плоскости (на тело). Если соударений нет, то пиксель имеет цвет
-    фона. Иначе — определённый цвет тела. Можно учитывать нормаль к телу
-    в точке пересечения, точечные источники и т.
+*** Possible improvements
+    - use bounding box for body to test collisions first;
+    - use octree-based space partitioning scheme;
 
-    Use REPA: http://code.ouroborus.net/gloss/gloss-head/gloss-examples/Ray/
+** Body rendering
+*** Ray casting
+    
+    Use Gloss, which uses REPA under the hood.
 
-**** TODO Исправить функцию buildCartesian
-     Не работает при x, y = 0
-*** Marching Cubes
-    Тесселизация скалярного поля (у нас бинарного) как бы. Требуется
-    только insideBody!
+*** Implement marching Cubes
          
-*** Сторонние библиотеки
-    1. OpenSCAD только моделирование, использует OpenCSG.
-    2. OpenCASCADE может также показать результаты (CSG не напрямую).
-    3. Своё приложение + OpenCSG.
-** Посмотреть проекты
-   - http://opencsg.org/ — библиотека для рендера CSG;
-   - http://www.nigels.com/research/ — о рендере CSG;
-   - http://www.openscad.org/ — создание CSG-моделей;
-   - http://gts.sourceforge.net/ — GNU Triangulated Surface (операции
-     над поверхностями);
-   
-* IN_PROGRESS Семплирование макропараметров
+*** Third party libraries
+   - http://opencsg.org/ — CSG rendering;
+   - http://www.openscad.org/ — CSG-modeling;
+   - http://gts.sourceforge.net/ — GNU Triangulated Surface;
+     
+* IN_PROGRESS Macroscopic sampling
 
-** Сортировка частиц по ячейкам
-   (то же самое нужно и для расчёта столкновений)
+** Cell sorting
+   (used for collision sampling as well)
 
    В каждой ячейке может быть разное количество частиц, поэтому для
    использования Repa или Accelerate придётся дополнить разреженную матрицу до
@@ -166,10 +100,6 @@
    против 0.15s (по времени работы classifyAll — но тут нужно учесть,
    что реповая классификация только вычисляет индексы, а
    последовательная при этом ещё и смещения сразу определяет).
-** Осреднение
-   Придётся хранить семплы со всех ячеек для некоторого количества
-   шагов, в течение которых накапливается статистика, а потом
-   осреднять. Семплы тоже будем хранить в одном супер-векторе.
 
 ** Типы
   http://www.haskell.org/haskellwiki/Performance/Datatypes   
@@ -201,7 +131,7 @@
    assume that every function is exported, and hence (to avoid code
    bloat) is more conservative about inlining.
 
-* Оптимизации
+* Optimization
   http://www.haskell.org/haskellwiki/Performance/GHC
 
 ** TODO [0/1] Fast calling convention
@@ -209,34 +139,21 @@
      rules out fast calling convention?
 
      measured 23.07 1KK@64K — no profit
-** Параллелизм
-*** DONE openBoundaryInjection
-    CLOSED: [2012-06-05 Вт. 13:57]
-    Шесть подобластей можно наполнять данными параллельно!
+* Parallelism
+** MAYBE injection || macroscopic sampling
+   Boundary injection is currently hardwired to use maximum of 6
+   threads (for each of interface domains). On 4-core system this
+   leads to 2 threads waiting for last two domains after first 4
+   domains are finished. This time may be used to sample macroscopic
+   parameters from the previous step instead!
 
-*** TODO Repa unsafe
-    Перейти на реповые комбинаторы, которые не выполняют проверки
-    границ.
+** TODO Repa unsafe
+   Use unbounded Repa combinators
+  
+** MAYBE LinearSplit
+   http://hackage.haskell.org/package/LinearSplit
+
+   May be linked with Control.Parallel.Stochastic to perform load
+   balancing.
    
-* Интеграция
-** Haskell-библиотека Implicit (CSG)
-   https://github.com/colah/ImplicitCAD
-
-   Ориентируется на тесселизацию тел (не усрётся ли столкновительный
-   движок от полигональной модели? в SMILE делали так).
-   
-* Прочие задачи
-
-** MAYBE Typesafe cell indexing
-   (Int -> Point), Classifier и размер сетки должны проверяться на
-   уровне типов
-
-   Частично решается использованием своей монады, в которой будет
-   сохраняться контекст разбиения.
-
-** DONE Выполнять предварительную обработку тел
-   CLOSED: [2012-07-02 Пн. 15:12]
-   - [X] force normalization for normal vectors
-** DONE Domain implementation
-   CLOSED: [2012-06-05 Вт. 01:30]
-   Use message-passing instead of pattern-matching?
+* Other issues
