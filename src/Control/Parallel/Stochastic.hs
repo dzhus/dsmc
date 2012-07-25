@@ -42,7 +42,3 @@ parMapST f =
 -- | List of seeds which preserve PRNG states between runs of parallel
 -- stochastic process sampling.
 type ParallelSeeds = [Seed]
-
-
--- | Class of tasks which may be splitted into subtasks
-class Splittable task splitted where
