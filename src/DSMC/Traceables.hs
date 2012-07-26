@@ -190,10 +190,11 @@ data Body = Plane !Vec3 !Double
             deriving Show
 
 
--- | Half-space defined by plane with outward normal and distance from
--- origin.
-plane :: Vec3 -> Double -> Body
-plane n d = Plane (normalize n) d
+-- | Half-space defined by arbitary point on plane and outward normal.
+plane :: Point -> Vec3 -> Body
+plane p n = Plane nn (p .* nn)
+            where
+              nn = normalize n
 
 
 -- | Sphere defined by center point and radius.
@@ -201,10 +202,10 @@ sphere :: Vec3 -> Double -> Body
 sphere o r = Sphere o r
 
 
--- | Infinite cylinder defined by vector collinear to axis, point on
--- axis and radius.
-cylinder :: Vec3 -> Point -> Double -> Body
-cylinder a o r = Cylinder (normalize a) o r
+-- | Infinite cylinder defined by two points on axis and radius.
+cylinder :: Point -> Point -> Double -> Body
+cylinder p1 p2 r = Cylinder (normalize $ p1 <-> p2) p1 r
+
 
 -- | Right circular cone defined by outward axis vector, apex point and
 -- angle between generatrix and axis.
