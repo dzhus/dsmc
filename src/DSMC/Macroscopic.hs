@@ -16,6 +16,7 @@ parameters get passed to sample collecting routines.
 module DSMC.Macroscopic
     ( MacroSamples
     , MacroField
+    , MacroParameters
     -- * Macroscopic sampling monad
     , MacroSamplingMonad
     , MacroSamplingOptions(..)
@@ -39,6 +40,7 @@ import qualified Data.Vector.Unboxed as VU
 
 import DSMC.Cells
 import DSMC.Particles
+import DSMC.Util
 import DSMC.Util.Vector
 
 
@@ -71,7 +73,8 @@ type MacroField = R.Array R.U R.DIM1 (Point, MacroParameters)
 --
 -- State contains counter for averaging steps left and current samples
 -- (note that this is a partial sum till sampling is complete). If
--- Nothing, then averaging has not started yet.
+-- Nothing, then averaging has not started yet, while -1 means that
+-- it's complete.
 --
 -- We use this to make sure that only safe values for cell count and
 -- classifier are used in 'updateSamples' and 'averageSamples' (that
@@ -96,7 +99,7 @@ getField = do
   indexer <- lift $ asks _indexer
   res <- get
   case res of
-    Just (0, samples) -> do
+    Just ((-1), samples) -> do
              let centralPoints = R.fromFunction (R.ix1 $ cellCount)
                                  (\(R.Z R.:. cellNumber) -> indexer cellNumber)
              R.computeP $ R.zipWith (,) centralPoints samples
