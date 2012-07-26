@@ -143,7 +143,11 @@
 ** TODO Stochastic parallelism
 *** Curent approach
     
-    parMapST
+    parMapST & splitParMapST
+
+**** TODO [/] Problems
+     - [ ] What if task is sufficiently small to have less possible
+       chunks than number of seeds available?
 
 *** Possible solutions
     1. Split & Combine typeclasses for containers with data which may
@@ -162,7 +166,6 @@
        allow to perform stochastic mapping (perhaps in special monad
        which keeps track of seeds being used for sampling). We need to
        somehow get ace
-
 ** MAYBE injection || macroscopic sampling
    Boundary injection is currently hardwired to use maximum of 6
    threads (for each of interface domains). On 4-core system this
