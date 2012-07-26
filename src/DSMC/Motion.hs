@@ -14,8 +14,6 @@ where
 
 import Control.Parallel.Stochastic
 
-import Data.Functor
-
 import qualified Data.Strict.Maybe as S
 
 import qualified Data.Array.Repa as R
