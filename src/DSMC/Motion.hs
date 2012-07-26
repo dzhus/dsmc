@@ -66,13 +66,12 @@ motion :: ParallelSeeds
        -> (Ensemble, ParallelSeeds)
 motion gs b dt surf ens =
     let
-        vs :: [VU.Vector Particle]
         -- | Since 'reflect' is sequential, we split ensemble into N
         -- slices and process them in parallel.
-        !vs = splitIn (R.toUnboxed ens) (length gs)
         reflector = makeReflector surf
-        v' :: [(VU.Vector Particle, Seed)]
-        !v' = parMapST (\g e -> reflect g b dt reflector e) $ zip vs gs
+        !(v', newSeeds) = 
+            splitParMapST (\g e -> reflect g b dt reflector e)
+                          (R.toUnboxed ens) gs
     in
-      (fromUnboxed1 $ VU.concat $ fst <$> v', snd <$> v')
+      (fromUnboxed1 v', newSeeds)
 
