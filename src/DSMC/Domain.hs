@@ -132,19 +132,17 @@ pureSpawnParticles d flow s = purifyRandomST (spawnParticles d flow) s
 
 -- | Fill the domain with particles for given flow parameters.
 -- Particles inside the body are removed.
-initializeParticles :: Monad m =>
-                       Domain
+initializeParticles :: Domain
                     -> Flow
                     -> Body
                     -> Seed
-                    -> m (Ensemble, Seed)
+                    -> (Ensemble, Seed)
 initializeParticles d flow body s =
     let
         (res, s') = pureSpawnParticles d flow s
         ens = fromUnboxed1 res
-    in do
-      ens' <- filterEnsemble (not . inside body) ens
-      return $! (ens', s')
+    in 
+      (filterEnsemble (not . inside body) ens, s')
 
 
 -- | Sample new particles in 6 interface domains along each side of
@@ -197,7 +195,7 @@ openBoundaryInjection (s1, s2, s3, s4, s5, s6) domain ex flow ens =
 
 
 -- | Filter out particles which are outside of the domain.
-clipToDomain :: Monad m => Domain -> Ensemble -> m Ensemble
+clipToDomain :: Domain -> Ensemble -> Ensemble
 clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
     let
         -- | Check if particle is in the domain.
@@ -207,7 +205,8 @@ clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
             ymax >= y && y >= ymin &&
             zmax >= z && z >= zmin
         {-# INLINE pred' #-}
-    in filterEnsemble pred' ens
+    in 
+      filterEnsemble pred' ens
 
 
 -- | Volume of a domain unoccupied by a given body.

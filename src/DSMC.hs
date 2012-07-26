@@ -63,19 +63,20 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
         -- Simulate evolution of the particle system for one time
         -- step, updating seeds used for sampling stochastic
         -- processes.
-        step :: Monad m =>
+        evolve :: Monad m =>
                 (Ensemble, ParallelSeeds, DomainSeeds)
              -> m (Ensemble, ParallelSeeds, DomainSeeds)
-        step (ens, gseeds, dseeds) =
+        evolve (ens, gseeds, dseeds) =
             do
               let
                   -- Inject new particles
                   (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+
                   -- Lagrangian step
                   (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
 
-              -- Filter out particles which left the domain
-              e'' <- clipToDomain domain e'
+                  -- Filter out particles which left the domain
+                  e'' = clipToDomain domain e'
 
               return $! (trace (show $ R.extent e'') e'', gseeds', dseeds')
 
@@ -103,7 +104,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
              -- ^ True if steady regime has been reached.
              -> MacroSamplingMonad (Ensemble, MacroField)
         sim1 !oldState@(ens, _, _) !steady = do
-            !newState@(ens', _, _) <- step oldState
+            !newState@(ens', _, _) <- evolve oldState
             let !newSteady = steady || stabilized ens' ens
 
             !enough <- case steady of
@@ -131,9 +132,8 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
                        then return emptyEnsemble
                        else do
                          -- Forget the initial sampling seed
-                         r <- create >>= save >>=
-                              initializeParticles domain flow body
-                         return $ fst r
+                         is <- create >>= save
+                         return $ fst $ initializeParticles domain flow body is
 
       return $ fst $ startMacroSampling
                  (sim1 (startEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False)

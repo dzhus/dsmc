@@ -85,7 +85,7 @@ printEnsemble particles = do
 
 
 -- | Filter out those particles which do not satisfy the predicate.
-filterEnsemble :: Monad m => (Particle -> Bool) -> Ensemble -> m Ensemble
+filterEnsemble :: (Particle -> Bool) -> Ensemble -> Ensemble
 filterEnsemble pred' ens =
     let
         (R.Z R.:. size) = R.extent ens
@@ -94,5 +94,5 @@ filterEnsemble pred' ens =
         {-# INLINE getter #-}
         predI :: Int -> Bool
         predI !i = pred' $ getter i
-    in do
-      return $ R.selectP predI getter size ens
+    in
+      R.selectP predI getter size ens
