@@ -42,18 +42,22 @@ class Split source where
     size :: source -> Int
 
     splitIn :: Int
-            -- ^ Split the source into that many subsources of equal size.
+            -- ^ Split the source into that many subsources of equal
+            -- size. This number is capped to the size of source if it
+            -- exceeds it.
             -> source
             -> [source]
-    splitIn n l =
-        let
-            partSize = (size l) `div` n
-            splitIn1 acc 0 rest = (rest:acc)
-            splitIn1 acc m rest = splitIn1 (v1:acc) (m - 1) v2
-                                  where
-                                    (v1, v2) = splitAt partSize rest
-        in
-          splitIn1 [] n l
+    splitIn n l | n < 1 = error "Can't split in less than one chunk!"
+                | n > (size l) = splitIn (size l) l
+                | otherwise =
+                    let
+                        partSize = (size l) `div` n
+                        splitIn1 acc 1 rest = acc ++ [rest]
+                        splitIn1 acc m rest = splitIn1 (acc ++ [v1]) (m - 1) v2
+                            where
+                              (v1, v2) = splitAt partSize rest
+                    in
+                      splitIn1 [] n l
     {-# INLINE splitIn #-}
 
 
