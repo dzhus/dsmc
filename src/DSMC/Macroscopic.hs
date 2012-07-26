@@ -19,7 +19,6 @@ module DSMC.Macroscopic
     , MacroParameters
     -- * Macroscopic sampling monad
     , MacroSamplingMonad
-    , MacroSamplingOptions(..)
     , startMacroSampling
     , updateSamples
     , getField
@@ -27,13 +26,11 @@ module DSMC.Macroscopic
 
 where
 
-import Prelude hiding (Just, Nothing, Maybe)
-
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State.Strict
 
-import Data.Strict.Maybe
+import qualified Data.Strict.Maybe as S
 
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
@@ -92,8 +89,8 @@ data MacroSamplingOptions =
                          }
 
 
--- TODO: Error if sampling is not finished?
-getField :: MacroSamplingMonad MacroField
+-- | Fetch macroscopic field if averaging is complete.
+getField :: MacroSamplingMonad (Maybe MacroField)
 getField = do
   (cellCount, _) <- lift $ asks _sorting
   indexer <- lift $ asks _indexer
@@ -102,8 +99,9 @@ getField = do
     Just ((-1), samples) -> do
              let centralPoints = R.fromFunction (R.ix1 $ cellCount)
                                  (\(R.Z R.:. cellNumber) -> indexer cellNumber)
-             R.computeP $ R.zipWith (,) centralPoints samples
-    _ -> error "Cannot fetch macroscopic field before sampling is finished."
+             f <- R.computeP $ R.zipWith (,) centralPoints samples
+             return $ Just f
+    _ -> return $ Nothing
 
 
 -- | Parameters in empty cell.
@@ -111,11 +109,20 @@ emptySample :: MacroParameters
 emptySample = (0, (0, 0, 0), 0)
 
 
--- | Run 'MacroSamplingMonad' action with given sampling options.
-startMacroSampling :: MacroSamplingMonad r ->
-                      MacroSamplingOptions ->
-                     (r, Maybe (Int, MacroSamples))
-startMacroSampling f opts = runReader (runStateT f Nothing) opts
+-- | Run 'MacroSamplingMonad' action with given sampling options and
+-- last state with macroscopic samples.
+startMacroSampling :: MacroSamplingMonad r
+                   -> UniformGrid
+                   -- ^ Grid used to sample macroscopic parameters.
+                   -> Int
+                   -- ^ Averaging steps count.
+                   -> (r, Maybe (Int, MacroSamples))
+startMacroSampling f subdiv ssteps = 
+    runReader (runStateT f Nothing) $
+              MacroSamplingOptions
+              (makeUniformClassifier subdiv)
+              (makeUniformIndexer subdiv)
+              ssteps
 
 
 -- | Create empty 'MacroSamples' array.
@@ -165,7 +172,7 @@ updateSamples ens =
       return (n == 0)
 
 -- | Sample macroscopic values in a cell.
-sampleMacroscopic :: Maybe CellContents
+sampleMacroscopic :: S.Maybe CellContents
                   -> Double
                   -- ^ Multiply all sampled parameters by this number,
                   -- which is the statistical weight of one sample.
@@ -174,8 +181,8 @@ sampleMacroscopic :: Maybe CellContents
                   -> MacroParameters
 sampleMacroscopic !c !weight =
     case c of
-      Nothing -> emptySample
-      Just ens ->
+      S.Nothing -> emptySample
+      S.Just ens ->
           let
               -- Particle count
               n = fromIntegral $ VU.length ens

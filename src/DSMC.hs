@@ -83,11 +83,6 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
         macroSubdiv :: UniformGrid
         macroSubdiv = UniformGrid domain mx my mz
 
-        macroOpts = MacroSamplingOptions
-                    (makeUniformClassifier macroSubdiv)
-                    (makeUniformIndexer macroSubdiv)
-                    ssteps
-
         -- Check if two consecutive particle ensemble states
         -- correspond to steady regime.
         stabilized :: Ensemble -> Ensemble -> Bool
@@ -116,7 +111,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
           case enough of
             False -> sim1 newState newSteady (n + 1)
             True -> do
-              field <- getField
+              (Just field) <- getField
               return (n, ens', field)
     in do
       -- Global seeds
@@ -141,4 +136,4 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
       -- Start the process
       return $ fst $ startMacroSampling
                  (sim1 (startEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False 0)
-                 macroOpts
+                 macroSubdiv ssteps
