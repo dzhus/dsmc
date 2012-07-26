@@ -103,19 +103,19 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
              -> Bool
              -- ^ True if steady regime has been reached.
              -> MacroSamplingMonad (Ensemble, MacroField)
-        sim1 !oldState@(ens, _, _) !steady = do
-            !newState@(ens', _, _) <- evolve oldState
-            let !newSteady = steady || stabilized ens' ens
+        sim1 !oldState@(ens, _, _) steady = do
+          !newState@(ens', _, _) <- evolve oldState
+          let !newSteady = steady || stabilized ens' ens
 
-            !enough <- case steady of
-                         False -> return False
-                         True -> updateSamples ens'
+          !enough <- case steady of
+                       False -> return False
+                       True -> updateSamples ens'
 
-            case enough of
-              False -> sim1 newState newSteady
-              True -> do
-                field <- getField
-                return (ens', field)
+          case enough of
+            False -> sim1 newState newSteady
+            True -> do
+              field <- getField
+              return (ens', field)
     in do
       -- Global seeds
       gs <- replicateM gsplit $ create >>= save
