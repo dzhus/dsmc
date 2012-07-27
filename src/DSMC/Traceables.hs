@@ -190,7 +190,8 @@ data Body = Plane !Vec3 !Double
             deriving Show
 
 
--- | Half-space defined by arbitary point on plane and outward normal.
+-- | Half-space defined by arbitary point on plane and outward normal
+-- (not necessarily a unit vector).
 plane :: Point -> Vec3 -> Body
 plane p n = Plane nn (p .* nn)
             where
@@ -220,6 +221,7 @@ cone a o h =
         odelta = n .* o
     in
       Cone n o h' m ta odelta
+
 
 -- | Intersection of two bodies.
 intersect :: Body -> Body -> Body
