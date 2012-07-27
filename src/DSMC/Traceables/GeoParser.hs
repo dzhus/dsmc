@@ -22,7 +22,8 @@
 -- Top-level object line must reference a previously defined solid.
 --
 -- Syntax for primitives generally follows signatures of 'Traceables'
--- constructors like 'T.plane', 'T.sphere':
+-- constructors like 'T.plane', 'T.sphere', with the only exception
+-- being for cone, for which 'T.:
 --
 -- [Half-space] @plane (px, py, pz; nx, ny, nz)@, where @(px, py, pz)@
 -- is a point on a plane which defines the half-space and @(nx, ny,
@@ -32,7 +33,13 @@
 -- [Sphere] @sphere (cx, cy, cz; r)@, where @(cx, cy, cz)@ is a
 -- central point of a sphere and @r@ is radius.
 --
--- [Cylinder] @cylinder (p1x, p1y, p1z; p2x, p2y, p2z; r)@
+-- [Cylinder] @cylinder (p1x, p1y, p1z; p2x, p2y, p2z; r)@ where
+-- @(p1x, p1y, p1z)@ and @(p2x, p2y, p2z)@ are two arbitary points on
+-- axis and @r@ is radius.
+--
+-- [Conical frustum] @cone (p1x, p1y, p1z; r1; p2x, p2y, p2z; r2)@
+-- where @(p1x, p1y, p1z)@ and @(p2x, p2y, p2z)@ are bottom and top
+-- points on cone axis and @r1@, @r2@ are corresponding radii.
 
 module DSMC.Traceables.GeoParser
     ( parseBody
@@ -163,8 +170,20 @@ cylinder = T.cylinder <$>
            (skipSpace *> cancer *> skipSpace *> double <* skipSpace <* rp)
 
 
+-- > <cone> ::=
+-- >   'cone (' <triple> ';' <double> ';' <triple> ';' <double> ')'
+cone :: Parser T.Body
+cone = T.conicalFrustum <$> 
+       ((,) <$>
+        (string "cone" *> skipSpace *> lp *> skipSpace *> triple) <*>
+        (skipSpace *> cancer *> skipSpace *> double)) <*>
+       ((,) <$>
+        (skipSpace *> cancer *> skipSpace *> triple) <*>
+        (skipSpace *> cancer *> skipSpace *> double <* skipSpace <* rp))
+
+
 primitive :: Parser T.Body
-primitive = plane <|> sphere <|> cylinder
+primitive = plane <|> sphere <|> cylinder <|> cone
 
 
 -- > <complement> ::= 'not' <body>
