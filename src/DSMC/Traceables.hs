@@ -171,7 +171,7 @@ hitP = (HitPoint infinityP Nothing)
 -- bodies.
 data Body = Plane !Vec3 !Double
           -- ^ Half-space with normalized outward normal and distance
-          -- from origin.
+          -- of boundary plane from origin.
           | Sphere !Vec3 !Double
           -- ^ Sphere defined by center and radius.
           | Cylinder !Vec3 !Point !Double
@@ -190,25 +190,25 @@ data Body = Plane !Vec3 !Double
             deriving Show
 
 
--- | Half-space defined by arbitary point on plane and outward normal
--- (not necessarily a unit vector).
+-- | A half-space defined by arbitary point on the boundary plane and
+-- outward normal (not necessarily a unit vector).
 plane :: Point -> Vec3 -> Body
 plane p n = Plane nn (p .* nn)
             where
               nn = normalize n
 
 
--- | Sphere defined by center point and radius.
+-- | A sphere defined by center point and radius.
 sphere :: Vec3 -> Double -> Body
 sphere o r = Sphere o r
 
 
--- | Infinite cylinder defined by two points on axis and radius.
+-- | An infinite cylinder defined by two points on axis and radius.
 cylinder :: Point -> Point -> Double -> Body
 cylinder p1 p2 r = Cylinder (normalize $ p1 <-> p2) p1 r
 
 
--- | Right circular cone defined by outward axis vector, apex point
+-- | A right circular cone defined by outward axis vector, apex point
 -- and angle between generatrix and axis (in degrees).
 cone :: Vec3 -> Point -> Double -> Body
 cone a o h =
