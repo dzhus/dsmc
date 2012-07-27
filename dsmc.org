@@ -30,6 +30,12 @@
       *Solution*: this is possible, but is obviously improbable, so we
       don't bother.
 
+    - [ ] when b is the intersection of b1 and b2, and ray is parallel
+      to the surface of b1, trace used to be considered empty. This
+      was fixed for plane, but not for cylinder. We don't care for
+      DSMC, since that case is improbable, but may lead to wrong
+      results when raycasting for graphical output.
+
 **** TODO [1/2] New bodies
      - [X] cone
      - [ ] parabole
