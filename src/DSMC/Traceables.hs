@@ -17,8 +17,9 @@ module DSMC.Traceables
     , plane
     , sphere
     , cylinder
-    , conicalFrustum
+    , cylinderFrustum
     , cone
+    , coneFrustum
     -- ** Compositions
     , intersect
     , unite
@@ -113,7 +114,7 @@ type HitSegment = (Pair HitPoint HitPoint)
 --
 -- In this example, body is an intersection of a sphere and sphere
 -- complement:
--- 
+--
 -- >                                /|\
 -- >                                 |
 -- >                                 |
@@ -176,11 +177,11 @@ data Body = Plane !Vec3 !Double
           | Sphere !Vec3 !Double
           -- ^ Sphere defined by center and radius.
           | Cylinder !Vec3 !Point !Double
-          -- ^ Cylinder with normalized inward axis vector, point on
-          -- axis and radius.
+          -- ^ Infinite circular cylinder with normalized axis vector,
+          -- point on axis and radius.
           | Cone !Vec3 !Point !Double !Matrix !Double !Double
-          -- ^ Cone defined by axis direction, vertex and cosine to
-          -- angle h between axis and outer edge.
+          -- ^ Cone defined by inward axis direction, vertex and
+          -- cosine to angle h between axis and outer edge.
           --
           -- Additionally transformation matrix $n * n - cos^2 h$,
           -- tangent of angle and odelta are stored for intersection
@@ -204,13 +205,26 @@ sphere :: Vec3 -> Double -> Body
 sphere o r = Sphere o r
 
 
--- | An infinite cylinder defined by two points on axis and radius.
+-- | An infinite circular cylinder defined by two arbitary
+-- points on axis and radius.
 cylinder :: Point -> Point -> Double -> Body
-cylinder p1 p2 r = Cylinder (normalize $ p1 <-> p2) p1 r
+cylinder p1 p2 r = Cylinder (normalize $ p2 <-> p1) p1 r
 
 
--- | A right circular cone defined by outward axis vector, apex point
--- and angle between generatrix and axis (in degrees, less than 90).
+-- | A finite right circular cylinder defined by two points on its top
+-- and bottom and radius.
+cylinderFrustum :: Point -> Point -> Double -> Body
+cylinderFrustum pb pt r =
+    intersect (plane pt axis)
+                  (intersect (plane pb $ invert axis)
+                                 (cylinder pb pt r))
+    where
+      axis = pt <-> pb
+
+
+-- | An infinite right circular cone defined by outward axis vector,
+-- apex point and angle between generatrix and axis (in degrees, less
+-- than 90).
 cone :: Vec3 -> Point -> Double -> Body
 cone a o h =
     let
@@ -226,8 +240,8 @@ cone a o h =
 
 -- | A conical frustum given by two points on its axis with radii at
 -- that points.
-conicalFrustum :: (Point, Double) -> (Point, Double) -> Body
-conicalFrustum (p1, r1) (p2, r2) =
+coneFrustum :: (Point, Double) -> (Point, Double) -> Body
+coneFrustum (p1, r1) (p2, r2) =
     let
         -- Direction from pb to pt is towards apex. Corresponding
         -- radii are rb > rt.
@@ -453,7 +467,7 @@ inside !(Plane n d) !(pos, _) = (pos .* n - d) < 0
 
 inside !(Sphere c r) !(pos, _) = (norm $ pos <-> c) < r
 
-inside !(Cylinder n c r) !(pos, _) = 
+inside !(Cylinder n c r) !(pos, _) =
     (norm $ h <-> (n .^ (h .* n))) < r
     where
       h = pos <-> c
