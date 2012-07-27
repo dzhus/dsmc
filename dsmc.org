@@ -61,18 +61,15 @@
    DSMC.Traceables.Parser module provides interface to define complex
    bodies using simple textual format inspired by that used in Netgen.
 
-   Primitive constructors provided by Traceables and those recognized by
-   Parser are slightly different, which is done to achieve some
-   compatibility with original Netgen format.
-
-*** Half-space
-*** Sphere
-*** Cylinder
-    Both Traceables and Parser provide infinite circular cylinder.
-*** Cone
-    Traceables provides both (infinite right circular) cone and
-    conical frustum. Parser reads `cone` primitive which is in essence
-    a conical frustum.
+   Primitive constructors provided by Traceables and those recognized
+   by Parser are slightly different. Half-space and sphere primitive
+   are the same (half-space constructor is named `plane`). For
+   cylinder and cone, Traceables provides infinite volumes as well as
+   frustums, while Parser provides only frustums (though calling them
+   simply `cylinder` and `cone`). Netgen used (badly broken) conical
+   frustum but along with infinite cylinder. We use frustums for
+   consistency, and it's hard to work with infinite versions for end
+   user anyways.
 
 * IN_PROGRESS Macroscopic sampling
 
