@@ -82,7 +82,7 @@ type HitSegment = (Pair HitPoint HitPoint)
 -- >                                      \
 --
 --
--- For example, since a ray intersects a plane only once, a halfspace
+-- For example, since a ray intersects a plane only once, a half-space
 -- primitive defined by this plane results in a half-interval trace of
 -- a particle:
 --
@@ -95,7 +95,7 @@ type HitSegment = (Pair HitPoint HitPoint)
 -- >                                    /
 -- >                                   /
 -- >                                  /
--- >                                 / - surface of halfspace
+-- >                                 / - surface of half-space
 --
 -- Ends of segments or intervals are calculated by intersecting the
 -- trajectory ray of a particle and the surface of the primitive. This
@@ -170,7 +170,7 @@ hitP = (HitPoint infinityP Nothing)
 -- | CSG body is a recursive composition of primitive objects or other
 -- bodies.
 data Body = Plane !Vec3 !Double
-          -- ^ Halfspace with normalized outward normal and distance
+          -- ^ Half-space with normalized outward normal and distance
           -- from origin.
           | Sphere !Vec3 !Double
           -- ^ Sphere defined by center and radius.
@@ -179,7 +179,7 @@ data Body = Plane !Vec3 !Double
           -- radius.
           | Cone !Vec3 !Point !Double !Matrix !Double !Double
           -- ^ Cone defined by axis direction, vertex and cosine to
-          -- angle h between axis and outer edge (in radians).
+          -- angle h between axis and outer edge.
           --
           -- Additionally transformation matrix $n * n - cos^2 h$,
           -- tangent of angle and odelta are stored for intersection
@@ -208,12 +208,12 @@ cylinder :: Point -> Point -> Double -> Body
 cylinder p1 p2 r = Cylinder (normalize $ p1 <-> p2) p1 r
 
 
--- | Right circular cone defined by outward axis vector, apex point and
--- angle between generatrix and axis.
+-- | Right circular cone defined by outward axis vector, apex point
+-- and angle between generatrix and axis (in degrees).
 cone :: Vec3 -> Point -> Double -> Body
 cone a o h =
     let
-        h' = cos $! h
+        h' = cos $ (h * pi / 180)
         n = normalize $ a .^ (-1)
         gamma = diag (-h' * h')
         m = addM (n `vxv` n) gamma
