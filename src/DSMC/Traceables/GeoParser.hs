@@ -10,11 +10,29 @@
 --
 -- @
 -- # comment
--- solid b1 = sphere (0, 0, 0; 5)
--- solid p1 = plane (0, 0, 0; 1, 0, 0)
+-- solid b1 = sphere (0, 0, 0; 5);
+-- solid p1 = plane (0, 0, 0; 1, 0, 0);
 -- solid body = b1 and p1;
 -- tlo body;
 -- @
+--
+-- Statements must end with a semicolon (newlines are optional).
+-- Excessive spaces are ignored.
+--
+-- Top-level object line must reference a previously defined solid.
+--
+-- Syntax for primitives generally follows signatures of 'Traceables'
+-- constructors like 'T.plane', 'T.sphere':
+--
+-- [Halfspace] @plane (px, py, pz; nx, ny, nz)@, where @(px, py, pz)@
+-- is a point on a plane which defines the halfspace and @(nx, ny,
+-- nz)@ is a normal to the plane (outward to the halfspace), not
+-- necessarily a unit vector.
+--
+-- [Sphere] @sphere (cx, cy, cz; r)@, where @(cx, cy, cz)@ is a
+-- central point of a sphere and @r@ is radius.
+--
+-- [Cylinder] @cylinder (p1x, p1y, p1z; p2x, p2y, p2z; r)@
 
 module DSMC.Traceables.GeoParser
     ( parseBody
@@ -78,6 +96,19 @@ comma :: Parser Char
 comma = char ','
 
 
+-- | Read comma-separated three doubles into point.
+--
+-- > <triple> ::= <double> ',' <double> ',' <double>
+triple :: Parser Point
+triple = (,,) <$> double
+                   <*>
+                   (skipSpace *> comma *> skipSpace *>
+                    double
+                    <* skipSpace <* comma <* skipSpace)
+                   <*>
+                   double
+
+
 keywords :: [String]
 keywords = [ "solid"
            , "tlo"
@@ -107,8 +138,6 @@ readName = do
     _ -> fail $ "Undefined solid: " ++ k
 
 
--- | Read plane.
---
 -- > <plane> ::=
 -- >   'plane (' <triple> ';' <triple> ')'
 plane :: Parser T.Body
@@ -117,8 +146,6 @@ plane = T.plane <$>
         (skipSpace *> cancer *> skipSpace *> triple <* skipSpace <* rp)
 
 
--- | Read sphere.
---
 -- > <sphere> ::=
 -- >   'sphere (' <triple> ';' <double> ')'
 sphere :: Parser T.Body
@@ -127,9 +154,17 @@ sphere = T.sphere <$>
         (skipSpace *> cancer *> skipSpace *> double <* skipSpace <* rp)
 
 
--- > <primitive> ::= <plane> | <sphere>
+-- > <cylinder> ::=
+-- >   'cylinder (' <triple> ';' <triple> ';' <double> ')'
+cylinder :: Parser T.Body
+cylinder = T.cylinder <$>
+           (string "cylinder" *> skipSpace *> lp *> skipSpace *> triple) <*>
+           (skipSpace *> cancer *> skipSpace *> triple) <*>
+           (skipSpace *> cancer *> skipSpace *> double <* skipSpace <* rp)
+
+
 primitive :: Parser T.Body
-primitive = plane <|> sphere
+primitive = plane <|> sphere <|> cylinder
 
 
 -- > <complement> ::= 'not' <body>
@@ -147,6 +182,8 @@ intersection :: CSGParser T.Body
 intersection = binary "and" T.intersect
 
 
+-- | Parse binary operation on two bodies with given composition
+-- operators.
 binary :: ByteString -> (T.Body -> T.Body -> T.Body) -> CSGParser T.Body
 binary op compose = do
   b1 <- uncomposedBody
@@ -177,23 +214,10 @@ body = union <|> intersection <|> complement <|> uncomposedBody
 
 
 -- Used to terminate left branch of binary compositions.
--- 
+--
 -- > <uncomposed-body> ::= <primitive> | <reference>
 uncomposedBody :: CSGParser T.Body
 uncomposedBody = lift primitive <|> readName
-
-
--- | Read comma-separated three doubles into point.
---
--- > <triple> ::= <double> ',' <double> ',' <double>
-triple :: Parser Point
-triple = (,,) <$> double
-                   <*>
-                   (skipSpace *> comma *> skipSpace *>
-                    double
-                    <* skipSpace <* comma <* skipSpace)
-                   <*>
-                   double
 
 
 -- | Top-level object declaration.
@@ -201,7 +225,7 @@ triple = (,,) <$> double
 -- > <tlo> ::= 'tlo' <body> ';'
 topLevel :: CSGParser T.Body
 topLevel = lift (string "tlo" *> skipSpace) *>
-           body
+           readName
            <* lift (cancer <* skipSpace)
 
 
