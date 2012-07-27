@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Simple parser for body definitions using .geo format.
+-- | Parser for body definitions.
 --
 -- Body definition contains a number of solid definitions and ends
 -- with the top level object definition. RHS of solid equations may
