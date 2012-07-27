@@ -1,12 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Simple parser for body definitions given in s-expressions.
+-- | Simple parser for body definitions using .geo format.
 --
+-- Body definition contains a set of solid definitions and top level
+-- object definition. RHS of solid equations may reference other
+-- solids to compose into complex bodies.
 --
 -- @
--- (and (not (plane (0 0 1) 0))
---      (or (sphere (2 2 0) 4)
---          (sphere (-2 -2 0) 4)))
+-- solid b1 = sphere (0, 0, 0; 5)
+-- solid p1 = plane (0, 0, 0; 1, 0, 0)
+-- solid body = b1 and p1;
+-- tlo body;
 -- @
 --
 -- We use custom types till Traceables are implemented.
