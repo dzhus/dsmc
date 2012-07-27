@@ -2,9 +2,11 @@
 
 -- | Simple parser for body definitions using .geo format.
 --
--- Body definition contains a set of solid definitions and top level
--- object definition. RHS of solid equations may reference other
--- solids to compose into complex bodies.
+-- Body definition contains a number of solid definitions and ends
+-- with the top level object definition. RHS of solid equations may
+-- reference other solids to compose into complex bodies.
+--
+-- Multiple-body compositions are right-associative.
 --
 -- @
 -- # comment
@@ -13,8 +15,6 @@
 -- solid body = b1 and p1;
 -- tlo body;
 -- @
---
--- We use custom types till Traceables are implemented.
 
 module DSMC.Traceables.GeoParser
     ( parseBody
@@ -132,36 +132,65 @@ primitive :: Parser T.Body
 primitive = plane <|> sphere
 
 
+-- > <complement> ::= 'not' <body>
+complement :: CSGParser T.Body
+complement = T.complement <$> (lift (string "not" *> skipSpace) *> body)
+
+
+-- > <union> ::= <uncomposed-body> 'or' <body>
+union :: CSGParser T.Body
+union = binary "or" T.unite
+
+
+-- > <intersection> ::= <uncomposed-body> 'and' <body>
+intersection :: CSGParser T.Body
+intersection = binary "and" T.intersect
+
+
+binary :: ByteString -> (T.Body -> T.Body -> T.Body) -> CSGParser T.Body
+binary op compose = do
+  b1 <- uncomposedBody
+  lift (skipSpace *> string op *> skipSpace)
+  b2 <- body
+  return $ compose b1 b2
+
+
 -- | Read stamement which adds new solid entry to lookup table.
 --
 -- > <statement> ::=
--- >   'solid' <varname> '=' <expression> ';'
+-- >   'solid' <varname> '=' <body> ';'
 statement :: CSGParser ()
 statement = do
   lift $ string "solid" *> skipSpace
   k <- varName
   lift $ skipSpace <* eq <* skipSpace
-  v <- readExpr <* lift (cancer *> skipSpace)
+  v <- body <* lift (cancer *> skipSpace)
   addEntry k v
-
 
 
 -- | Expression is either a primitive, a reference to previously
 -- defined solid or an operation on expressions.
 --
--- > <expression> ::= <primitive> | <reference>
-readExpr :: CSGParser T.Body
-readExpr = lift primitive <|> readName
+-- > <body> ::= <union> | <intersection> | <complement> | <primitive> | <reference>
+body :: CSGParser T.Body
+body = union <|> intersection <|> complement <|> uncomposedBody
+
+
+-- Used to terminate left branch of binary compositions.
+-- 
+-- > <uncomposed-body> ::= <primitive> | <reference>
+uncomposedBody :: CSGParser T.Body
+uncomposedBody = lift primitive <|> readName
 
 
 -- | Read comma-separated three doubles into point.
--- 
+--
 -- > <triple> ::= <double> ',' <double> ',' <double>
 triple :: Parser Point
 triple = (,,) <$> double
                    <*>
-                   (skipSpace *> comma *> skipSpace *> 
-                    double 
+                   (skipSpace *> comma *> skipSpace *>
+                    double
                     <* skipSpace <* comma <* skipSpace)
                    <*>
                    double
@@ -169,10 +198,10 @@ triple = (,,) <$> double
 
 -- | Top-level object declaration.
 --
--- > <tlo> ::= 'tlo' <expression> ';'
+-- > <tlo> ::= 'tlo' <body> ';'
 topLevel :: CSGParser T.Body
-topLevel = lift (string "tlo" *> skipSpace) *> 
-           readExpr 
+topLevel = lift (string "tlo" *> skipSpace) *>
+           body
            <* lift (cancer <* skipSpace)
 
 
@@ -192,9 +221,9 @@ geoFile = (many1 $ statement <|> lift comment) *> topLevel
 -- | Try to read body definition from bytestring. Return body or error
 -- message if parsing fails.
 parseBody :: ByteString -> Either String T.Body
-parseBody input = 
+parseBody input =
     case (parseOnly (runStateT geoFile M.empty) input) of
-      Right (body, _) -> Right body
+      Right (b, _) -> Right b
       Left msg -> Left msg
 
 
