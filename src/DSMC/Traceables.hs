@@ -17,6 +17,7 @@ module DSMC.Traceables
     , plane
     , sphere
     , cylinder
+    , conicalFrustum
     , cone
     -- ** Compositions
     , intersect
@@ -175,8 +176,8 @@ data Body = Plane !Vec3 !Double
           | Sphere !Vec3 !Double
           -- ^ Sphere defined by center and radius.
           | Cylinder !Vec3 !Point !Double
-          -- ^ Cylinder with normalized axis vector, point on axis and
-          -- radius.
+          -- ^ Cylinder with normalized inward axis vector, point on
+          -- axis and radius.
           | Cone !Vec3 !Point !Double !Matrix !Double !Double
           -- ^ Cone defined by axis direction, vertex and cosine to
           -- angle h between axis and outer edge.
@@ -209,18 +210,43 @@ cylinder p1 p2 r = Cylinder (normalize $ p1 <-> p2) p1 r
 
 
 -- | A right circular cone defined by outward axis vector, apex point
--- and angle between generatrix and axis (in degrees).
+-- and angle between generatrix and axis (in degrees, less than 90).
 cone :: Vec3 -> Point -> Double -> Body
 cone a o h =
     let
         h' = cos $ (h * pi / 180)
-        n = normalize $ a .^ (-1)
+        n = normalize $ invert a
         gamma = diag (-h' * h')
         m = addM (n `vxv` n) gamma
         ta = tan $ h
         odelta = n .* o
     in
       Cone n o h' m ta odelta
+
+
+-- | A conical frustum given by two points on its axis with radii at
+-- that points.
+conicalFrustum :: (Point, Double) -> (Point, Double) -> Body
+conicalFrustum (p1, r1) (p2, r2) =
+    let
+        -- Direction from pb to pt is towards apex. Corresponding
+        -- radii are rb > rt.
+        (pb, rb, pt, rt) = case (r1 < r2) of
+                             True -> (p2, r2, p1, r1)
+                             False -> (p1, r1, p2, r2)
+        -- Cone axis and frustum height
+        gap =  pt <-> pb
+        height = norm gap
+        axis = normalize gap
+        -- Calculate distance from pt to apex.
+        dist = height / (rb / rt - 1)
+        apex = pt <+> (axis .^ dist)
+        -- Angle between generatrix and axis
+        degs = atan (rt / dist) * (180 / pi)
+    in
+      intersect (plane pt axis)
+                    (intersect (plane pb $ invert axis)
+                                   (cone axis apex degs))
 
 
 -- | Intersection of two bodies.
@@ -242,13 +268,16 @@ complement !b = Complement b
 trace :: Body -> Particle -> Trace
 {-# INLINE trace #-}
 
-trace !(Plane n d) !(pos, v) =
+trace !b@(Plane n d) !p@(pos, v) =
     let
         !f = -(n .* v)
     in
-      -- Check if ray is parallel to plane
       if f == 0
-      then []
+      then
+          -- Ray is parallel to plane
+          if inside b p
+          then [(HitPoint infinityN Nothing) :!: (HitPoint infinityP Nothing)]
+          else []
       else
           let
               !t = (pos .* n - d) / f
@@ -330,6 +359,7 @@ trace !(Complement b) !p =
     complementTraces tr
         where
           tr = trace b p
+
 
 uniteTraces :: Trace -> Trace -> Trace
 uniteTraces u [] = u

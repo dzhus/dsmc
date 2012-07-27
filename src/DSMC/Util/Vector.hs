@@ -18,6 +18,7 @@ module DSMC.Util.Vector
     , (.*)
     , norm
     , normalize
+    , invert
     , distance
     , reverse
     , moveBy
@@ -123,6 +124,12 @@ norm !(x, y, z) = sqrt (x * x + y * y + z * z)
 normalize :: Vec3 -> Vec3
 normalize !v = v .^ (1 / norm v)
 {-# INLINE normalize #-}
+
+
+-- | Scale vector by -1.
+invert :: Vec3 -> Vec3
+invert !v = v .^ (-1)
+{-# INLINE invert #-}
 
 
 -- | Move point by velocity vector for given time and return new
