@@ -7,7 +7,6 @@ module DSMC.Util
     ( solveq
     , SquareRoots
     , fromUnboxed1
-    , splitIn
     , iforM_
     , Time
     )
@@ -20,7 +19,6 @@ import Data.Strict.Maybe
 import Data.Strict.Tuple
 
 import qualified Data.Array.Repa as R
-import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Unboxed as VU
 
 
@@ -55,23 +53,6 @@ solveq !a !b !c
 fromUnboxed1 :: (VU.Unbox e) => VU.Vector e -> R.Array R.U R.DIM1 e
 fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
 {-# INLINE fromUnboxed1 #-}
-
-
--- | Split vector into list of n subvectors.
-splitIn :: VG.Vector v a => v a -> Int -> [v a]
-splitIn ens n =
-    let
-        partSize = (VG.length ens) `div` n
-        splitIn1 0 acc _    = acc
-        splitIn1 1 acc rest = (rest:acc)
-        splitIn1 m acc rest =
-            let
-                (v1, v2) = VG.splitAt partSize rest
-            in
-              splitIn1 (m - 1) (v1:acc) v2
-    in
-      splitIn1 n [] ens
-{-# INLINE splitIn #-}
 
 
 -- | Map monadic action over pairs of vector indices and items and
