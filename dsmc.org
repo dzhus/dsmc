@@ -56,6 +56,24 @@
    - http://www.openscad.org/ — CSG-modeling;
    - http://gts.sourceforge.net/ — GNU Triangulated Surface;
      
+
+** Interface
+   DSMC.Traceables.Parser module provides interface to define complex
+   bodies using simple textual format inspired by that used in Netgen.
+
+   Primitive constructors provided by Traceables and those recognized by
+   Parser are slightly different, which is done to achieve some
+   compatibility with original Netgen format.
+
+*** Half-space
+*** Sphere
+*** Cylinder
+    Both Traceables and Parser provide infinite circular cylinder.
+*** Cone
+    Traceables provides both (infinite right circular) cone and
+    conical frustum. Parser reads `cone` primitive which is in essence
+    a conical frustum.
+
 * IN_PROGRESS Macroscopic sampling
 
 ** Cell sorting

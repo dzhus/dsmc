@@ -21,7 +21,7 @@ library
     DSMC.Domain,
     DSMC.Surface,
     DSMC.Traceables,
-    DSMC.Traceables.GeoParser,
+    DSMC.Traceables.Parser,
     DSMC.Macroscopic,
     DSMC.Motion,
     DSMC.Particles,

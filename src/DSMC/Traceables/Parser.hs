@@ -41,7 +41,7 @@
 -- where @(p1x, p1y, p1z)@ and @(p2x, p2y, p2z)@ are bottom and top
 -- points on cone axis and @r1@, @r2@ are corresponding radii.
 
-module DSMC.Traceables.GeoParser
+module DSMC.Traceables.Parser
     ( parseBody
     , parseBodyFile
     )
