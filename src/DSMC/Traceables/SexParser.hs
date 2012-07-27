@@ -17,71 +17,143 @@ module DSMC.Traceables.SexParser
 
 where
 
+import Prelude as P
+
 import Control.Applicative
+import Control.Monad
+
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State.Strict
+
 import Data.Attoparsec.Char8
-import Data.ByteString
+import Data.Attoparsec.Combinator
+
+import Data.ByteString.Char8
+
+import qualified Data.Map as M
 
 import qualified DSMC.Traceables as T
 import DSMC.Util.Vector
 
 
--- | Read opening parenthesis.
-lp :: Parser ByteString
-lp = string "("
+-- | Transformer which adds lookup table to underlying monad.
+type Table a k v = StateT (M.Map k v) a
 
 
--- | Read closing parenthesis.
-rp :: Parser ByteString
-rp = string ")"
+-- | Add entry to the lookup table.
+addEntry :: (Ord k, Monad a) => k -> v -> Table a k v ()
+addEntry key value = liftM (M.insert key value) get >>= put
 
 
--- | Read vector.
--- @(x.x y.y z.z)@
-vector :: Parser Vector
-vector = Vector <$> (lp *> double)
-                    <*>
-                    (skipSpace *> double <* skipSpace)
-                    <*>
-                    (double <* rp)
+-- | Lookup entry in the table.
+getEntry :: (Ord k, Monad a) => k -> Table a k v (Maybe v)
+getEntry key = liftM (M.lookup key) get
 
+
+-- | Parser with lookup table.
+type CSGParser = Table Parser String T.Body
+
+
+lp :: Parser Char
+lp = char '('
+
+
+rp :: Parser Char
+rp = char ')'
+
+
+eq :: Parser Char
+eq = char '='
+
+
+cancer :: Parser Char
+cancer = char ';'
+
+
+comma :: Parser Char
+comma = char ','
+
+
+keywords :: [String]
+keywords = [ "solid"
+           , "tlo"
+           , "plane"
+           ,"sphere"
+           , "cylinder"
+           , "cone"
+           ]
+
+
+-- TODO Handle unexpected keywords in solid names
+varName :: Parser String
+varName = many1 (letter_ascii <|> digit)
+
+
+-- | Lookup body in table by its name.
+readName :: CSGParser T.Body
+readName = do
+  k <- lift varName
+  v <- getEntry k
+  case v of
+    Just b -> return b
+    _ -> error $ "Undefined solid: " ++ k
+
+
+-- | Add new solid entry to lookup table.
+statement :: CSGParser ()
+statement = do
+  k <- lift $
+       string "solid" *> skipSpace *>
+       varName
+       <* skipSpace <* eq <* skipSpace
+  v <- readExpr <* lift (cancer *> skipSpace)
+  addEntry k v
+
+
+readExpr :: CSGParser T.Body
+readExpr = readName <|> (lift primitive)
+
+
+topLevel :: CSGParser T.Body
+topLevel = lift (string "tlo" *> skipSpace) *> readExpr <* lift (cancer <* skipSpace)
+
+
+-- | Read comma-separated three doubles into point.
+-- @x, y, z@
+triple :: Parser Point
+triple = (,,) <$> double
+                   <*>
+                   (skipSpace *> double <* skipSpace)
+                   <*>
+                   double
 
 -- | Read plane.
 --
--- @(plane (x y z) s)@
+-- @plane (x, y, z; u, v, w)@
 plane :: Parser T.Body
-plane = T.plane <$> (string "plane" *> skipSpace *> vector)
-                  <*> (skipSpace *> double)
+plane = T.plane <$>
+        (string "plane" *> skipSpace *> lp *> skipSpace *> triple) <*>
+        (skipSpace *> cancer *> triple <* skipSpace <* rp)
 
 
 primitive :: Parser T.Body
 primitive = plane
 
 
--- | Build parser for @(opName obj1 obj2 ...)@
-naryOperation :: ByteString -> Parser [T.Body]
-naryOperation opName = (string opName *> (many (skipSpace *> objParser)))
-
-
--- | @(or obj1 obj2 ...)@
-union :: Parser T.Body
-union = T.union <$> naryOperation "or"
-
--- | @(and obj1 obj2 ...)@
-intersection :: Parser T.Body
-intersection = T.intersection <$> naryOperation "and"
-
-
-objParser :: Parser T.Body
-objParser = lp *> (primitive <|> union <|> intersection) <* rp
+-- | Read sequence of statements which define solids, and finally read
+-- top level object definition.
+geoFile :: CSGParser T.Body
+geoFile = (many1 statement) *> topLevel
 
 
 -- | Try to read body definition from bytestring.
 --
 -- @Left (Just t)@ is returned in case parsing failed, where @t@ is
 -- unparsed chunk.
-parseBody :: ByteString -> Either (Maybe ByteString) T.Body
-parseBody s =
-    case (parse objParser s) of
-      Done _ r -> Right r
-      Partial _ -> Left Nothing
-      Fail t _ _ -> Left (Just t)
+--parseBody :: ByteString -> Either (Maybe (ByteString, String)) T.Body
+parseBody input = parseOnly (runStateT geoFile M.empty) input
+    
+    -- case of
+    --   Done _ r -> Right $ fst r
+    --   Partial _ -> Left Nothing
+    --   Fail t _ msg -> Left (Just (t, msg))
