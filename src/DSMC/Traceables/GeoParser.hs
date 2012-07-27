@@ -15,7 +15,7 @@
 --
 -- We use custom types till Traceables are implemented.
 
-module DSMC.Traceables.SexParser
+module DSMC.Traceables.GeoParser
     ( parseBody
     )
 
@@ -30,8 +30,6 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 
 import Data.Attoparsec.Char8
-import Data.Attoparsec.Combinator
-
 import Data.ByteString.Char8
 
 import qualified Data.Map as M
@@ -82,82 +80,112 @@ keywords :: [String]
 keywords = [ "solid"
            , "tlo"
            , "plane"
-           ,"sphere"
+           , "sphere"
            , "cylinder"
            , "cone"
            ]
 
 
--- TODO Handle unexpected keywords in solid names
-varName :: Parser String
-varName = many1 (letter_ascii <|> digit)
+-- | Read variable name or fail if it's a keyword.
+varName :: CSGParser String
+varName = do
+  k <- lift $ many1 (letter_ascii <|> digit)
+  case (P.elem k keywords) of
+    False -> return k
+    True -> fail $ "Unexpected keyword: " ++ k
 
 
--- | Lookup body in table by its name.
+-- | Lookup body in table by its name or fail if it is undefined.
 readName :: CSGParser T.Body
 readName = do
-  k <- lift varName
+  k <- varName
   v <- getEntry k
   case v of
     Just b -> return b
-    _ -> error $ "Undefined solid: " ++ k
+    _ -> fail $ "Undefined solid: " ++ k
 
 
--- | Add new solid entry to lookup table.
+-- | Read plane.
+--
+-- > <plane> ::=
+-- >   'plane (' <triple> ';' <triple> ')'
+plane :: Parser T.Body
+plane = T.plane <$>
+        (string "plane" *> skipSpace *> lp *> skipSpace *> triple) <*>
+        (skipSpace *> cancer *> skipSpace *> triple <* skipSpace <* rp)
+
+
+-- | Read sphere.
+--
+-- > <sphere> ::=
+-- >   'sphere (' <triple> ';' <double> ')'
+sphere :: Parser T.Body
+sphere = T.sphere <$>
+        (string "sphere" *> skipSpace *> lp *> skipSpace *> triple) <*>
+        (skipSpace *> cancer *> skipSpace *> double <* skipSpace <* rp)
+
+
+-- > <primitive> ::= <plane> | <sphere>
+primitive :: Parser T.Body
+primitive = plane <|> sphere
+
+
+-- | Read stamement which adds new solid entry to lookup table.
+--
+-- > <statement> ::=
+-- >   'solid' <varname> '=' <expression> ';'
 statement :: CSGParser ()
 statement = do
-  k <- lift $
-       string "solid" *> skipSpace *>
-       varName
-       <* skipSpace <* eq <* skipSpace
+  lift $ string "solid" *> skipSpace
+  k <- varName
+  lift $ skipSpace <* eq <* skipSpace
   v <- readExpr <* lift (cancer *> skipSpace)
   addEntry k v
 
 
+
+-- | Expression is either a primitive, a reference to previously
+-- defined solid or an operation on expressions.
+--
+-- > <expression> ::= <primitive> | <reference>
 readExpr :: CSGParser T.Body
-readExpr = readName <|> (lift primitive)
-
-
-topLevel :: CSGParser T.Body
-topLevel = lift (string "tlo" *> skipSpace) *> readExpr <* lift (cancer <* skipSpace)
+readExpr = lift primitive <|> readName
 
 
 -- | Read comma-separated three doubles into point.
--- @x, y, z@
+-- 
+-- > <triple> ::= <double> ',' <double> ',' <double>
 triple :: Parser Point
 triple = (,,) <$> double
                    <*>
-                   (skipSpace *> double <* skipSpace)
+                   (skipSpace *> comma *> skipSpace *> 
+                    double 
+                    <* skipSpace <* comma <* skipSpace)
                    <*>
                    double
 
--- | Read plane.
+
+-- | Top-level object declaration.
 --
--- @plane (x, y, z; u, v, w)@
-plane :: Parser T.Body
-plane = T.plane <$>
-        (string "plane" *> skipSpace *> lp *> skipSpace *> triple) <*>
-        (skipSpace *> cancer *> triple <* skipSpace <* rp)
-
-
-primitive :: Parser T.Body
-primitive = plane
+-- > <tlo> ::= 'tlo' <expression> ';'
+topLevel :: CSGParser T.Body
+topLevel = lift (string "tlo" *> skipSpace) *> 
+           readExpr 
+           <* lift (cancer <* skipSpace)
 
 
 -- | Read sequence of statements which define solids, and finally read
 -- top level object definition.
+--
+-- > <geoFile> ::= <statement> <geoFile> | <tlo>
 geoFile :: CSGParser T.Body
 geoFile = (many1 statement) *> topLevel
 
 
--- | Try to read body definition from bytestring.
---
--- @Left (Just t)@ is returned in case parsing failed, where @t@ is
--- unparsed chunk.
---parseBody :: ByteString -> Either (Maybe (ByteString, String)) T.Body
-parseBody input = parseOnly (runStateT geoFile M.empty) input
-    
-    -- case of
-    --   Done _ r -> Right $ fst r
-    --   Partial _ -> Left Nothing
-    --   Fail t _ msg -> Left (Just (t, msg))
+-- | Try to read body definition from bytestring. Return body or error
+-- message if parsing fails.
+parseBody :: ByteString -> Either String T.Body
+parseBody input = 
+    case (parseOnly (runStateT geoFile M.empty) input) of
+      Right (body, _) -> Right body
+      Left msg -> Left msg
