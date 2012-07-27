@@ -24,9 +24,9 @@
 -- Syntax for primitives generally follows signatures of 'Traceables'
 -- constructors like 'T.plane', 'T.sphere':
 --
--- [Halfspace] @plane (px, py, pz; nx, ny, nz)@, where @(px, py, pz)@
--- is a point on a plane which defines the halfspace and @(nx, ny,
--- nz)@ is a normal to the plane (outward to the halfspace), not
+-- [Half-space] @plane (px, py, pz; nx, ny, nz)@, where @(px, py, pz)@
+-- is a point on a plane which defines the half-space and @(nx, ny,
+-- nz)@ is a normal to the plane (outward to the half-space), not
 -- necessarily a unit vector.
 --
 -- [Sphere] @sphere (cx, cy, cz; r)@, where @(cx, cy, cz)@ is a
