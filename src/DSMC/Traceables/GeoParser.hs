@@ -7,6 +7,7 @@
 -- solids to compose into complex bodies.
 --
 -- @
+-- # comment
 -- solid b1 = sphere (0, 0, 0; 5)
 -- solid p1 = plane (0, 0, 0; 1, 0, 0)
 -- solid body = b1 and p1;
@@ -17,6 +18,7 @@
 
 module DSMC.Traceables.GeoParser
     ( parseBody
+    , parseBodyFile
     )
 
 where
@@ -30,7 +32,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Strict
 
 import Data.Attoparsec.Char8
-import Data.ByteString.Char8
+import Data.ByteString.Char8 as B
 
 import qualified Data.Map as M
 
@@ -174,12 +176,17 @@ topLevel = lift (string "tlo" *> skipSpace) *>
            <* lift (cancer <* skipSpace)
 
 
+-- | Read one-line comment starting with hash sign.
+comment :: Parser ()
+comment = char '#' >> (manyTill anyChar endOfLine) >> return ()
+
+
 -- | Read sequence of statements which define solids, and finally read
 -- top level object definition.
 --
--- > <geoFile> ::= <statement> <geoFile> | <tlo>
+-- > <geoFile> ::= <statement> <geoFile> | <comment> <geoFile> | <tlo>
 geoFile :: CSGParser T.Body
-geoFile = (many1 statement) *> topLevel
+geoFile = (many1 $ statement <|> lift comment) *> topLevel
 
 
 -- | Try to read body definition from bytestring. Return body or error
@@ -189,3 +196,8 @@ parseBody input =
     case (parseOnly (runStateT geoFile M.empty) input) of
       Right (body, _) -> Right body
       Left msg -> Left msg
+
+
+-- | Read body definition from file.
+parseBodyFile :: FilePath -> IO (Either String T.Body)
+parseBodyFile file = parseBody <$> B.readFile file
