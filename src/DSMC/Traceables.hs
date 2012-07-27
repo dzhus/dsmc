@@ -274,7 +274,8 @@ trace !b@(Plane n d) !p@(pos, v) =
     in
       if f == 0
       then
-          -- Ray is parallel to plane
+          -- If ray is parallel to plane and is inside, then trace is
+          -- the whole timeline.
           if inside b p
           then [(HitPoint infinityN Nothing) :!: (HitPoint infinityP Nothing)]
           else []
