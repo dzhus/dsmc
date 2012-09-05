@@ -264,7 +264,7 @@ comment = char '#' >> (manyTill anyChar endOfLine) >> return ()
 --
 -- > <geoFile> ::= <statement> <geoFile> | <comment> <geoFile> | <tlo>
 geoFile :: CSGParser T.Body
-geoFile = (many1 $ statement <|> lift comment) *> topLevel
+geoFile = (many1 $ lift comment <|> statement) *> topLevel
 
 
 -- | Try to read body definition from bytestring. Return body or error
