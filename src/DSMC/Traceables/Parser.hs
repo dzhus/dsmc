@@ -8,13 +8,17 @@
 --
 -- Multiple-body compositions are right-associative.
 --
--- @
--- # comment
--- solid b1 = sphere (0, 0, 0; 5);
--- solid p1 = plane (0, 0, 0; 1, 0, 0);
--- solid body = b1 and p1;
--- tlo body;
--- @
+-- > # comment
+-- >
+-- > # define few primitives
+-- > solid b1 = sphere (0, 0, 0; 5);
+-- > solid p1 = plane (0, 0, 0; 1, 0, 0);
+-- >
+-- > # define a composition
+-- > solid body = b1 and p1;
+-- >
+-- > # assign it to be the top level object
+-- > tlo body;
 --
 -- Statements must end with a semicolon (newlines are optional).
 -- Excessive spaces are ignored.
