@@ -374,9 +374,7 @@ trace !(Union b1 b2) !p =
           tr2 = trace b2 p
 
 trace !(Complement b) !p =
-    complementTraces tr
-        where
-          tr = trace b p
+    complementTrace $ trace b p
 
 
 uniteTraces :: Trace -> Trace -> Trace
@@ -421,9 +419,9 @@ intersectTraces tr1 tr2 =
 
 
 -- | Complement to trace (normals flipped) in @R^3@.
-complementTraces :: Trace -> Trace
-complementTraces ((sp@(HitPoint ts _) :!: ep):xs) =
-    start ++ (complementTraces' ep xs)
+complementTrace :: Trace -> Trace
+complementTrace ((sp@(HitPoint ts _) :!: ep):xs) =
+    start ++ (complementTrace' ep xs)
     where
       flipNormals :: HitSegment -> HitSegment
       flipNormals !((HitPoint t1 n1) :!: (HitPoint t2 n2)) =
@@ -433,18 +431,18 @@ complementTraces ((sp@(HitPoint ts _) :!: ep):xs) =
       start = if (isInfinite ts)
               then []
               else [flipNormals $ hitN :!: sp]
-      complementTraces' :: HitPoint -> Trace -> Trace
-      complementTraces' c ((a :!: b):tr) =
+      complementTrace' :: HitPoint -> Trace -> Trace
+      complementTrace' c ((a :!: b):tr) =
           -- Bridge between last point of previous segment and first
           -- point of the next one.
-          (flipNormals (c :!: a)):(complementTraces' b tr)
-      complementTraces' a@(HitPoint t _) [] =
+          (flipNormals (c :!: a)):(complementTrace' b tr)
+      complementTrace' a@(HitPoint t _) [] =
           -- End in infinity if last hitpoint is finite
           if (isInfinite t)
           then []
           else [flipNormals (a :!: hitP)]
-complementTraces [] = [hitN :!: hitP]
-{-# INLINE complementTraces #-}
+complementTrace [] = [hitN :!: hitP]
+{-# INLINE complementTrace #-}
 
 
 -- | If the particle has hit the body during last time step, calculate
