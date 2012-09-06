@@ -10,6 +10,7 @@ module DSMC.Util.Vector
     ( Vec3
     , Matrix
     , Point
+    , origin
     -- * Vector operations
     , (<+>)
     , (<->)
@@ -47,6 +48,11 @@ type Matrix = (Vec3, Vec3, Vec3)
 
 -- | Point in @R^3@.
 type Point = Vec3
+
+
+-- | Origin point @(0, 0, 0)@.
+origin :: Point
+origin  = (0, 0, 0)
 
 
 -- | Add two vectors.
