@@ -29,7 +29,8 @@ module DSMC.Util.Vector
     , diag
     , addM
     -- * Cartesian system helpers
-    , buildCartesian
+    , buildCartesianVec
+    , buildCartesianAng
     )
 
 where
@@ -167,11 +168,23 @@ horizontalShifter n@(x, y, z)
     | z == 0 = (0, 0, 1) >< n
     | x == 0 && y == 0 = (1, 0, 0) >< n
     | otherwise = (x, y, 0) >< n
+{-# INLINE horizontalShifter #-}
 
 
 -- | Build cartesian axes from Ox vector so that Oz belongs to plane
 -- perpendicular to Oxy (i.e. roll = 0 degree).
-buildCartesian :: Vec3 -> (Vec3, Vec3, Vec3)
-buildCartesian n = (normalize n, normalize v, normalize w)
+buildCartesianVec :: Vec3 -> (Vec3, Vec3, Vec3)
+buildCartesianVec n = (normalize n, normalize v, normalize w)
     where v = horizontalShifter n
           w = v >< n
+{-# INLINE buildCartesianVec #-}
+
+
+-- | Build cartesian axes from yaw and pitch with 0 roll. Angles are
+-- in radians.
+buildCartesianAng :: Double -> Double -> (Vec3, Vec3, Vec3)
+buildCartesianAng yaw pitch = (normalize u, normalize v, normalize w)
+    where u = (cos yaw, sin yaw, sin pitch)
+          v = (- (sin yaw), cos yaw, 0)
+          w = v >< u
+{-# INLINE buildCartesianAng #-}
