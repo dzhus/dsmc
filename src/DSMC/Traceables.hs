@@ -239,7 +239,8 @@ cone a o h =
 
 
 -- | A conical frustum given by two points on its axis with radii at
--- that points.
+-- that points. One of radii may be zero (in which case one of frustum
+-- ends will be the apex).
 coneFrustum :: (Point, Double) -> (Point, Double) -> Body
 coneFrustum (p1, r1) (p2, r2) =
     let
@@ -253,10 +254,12 @@ coneFrustum (p1, r1) (p2, r2) =
         height = norm gap
         axis = normalize gap
         -- Calculate distance from pt to apex.
-        dist = height / (rb / rt - 1)
+        dist = if rt == 0 
+               then 0 
+               else height / (rb / rt - 1)
         apex = pt <+> (axis .^ dist)
         -- Angle between generatrix and axis
-        degs = atan (rt / dist) * (180 / pi)
+        degs = atan (rb / (dist + norm (pt <-> pb))) * (180 / pi)
     in
       intersect (plane pt axis)
                     (intersect (plane pb $ invert axis)
