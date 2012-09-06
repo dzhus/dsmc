@@ -65,7 +65,7 @@ solveq !a !b !c
 -- | Convert between Repa 'R.DIM1'-arrays and unboxed 'VU.Vector's.
 fromUnboxed1 :: (VU.Unbox e) => VU.Vector e -> R.Array R.U R.DIM1 e
 fromUnboxed1 v = R.fromUnboxed (R.ix1 $ VU.length v) v
-{-# INLINE fromUnboxed1 #-}
+{-# INLINABLE fromUnboxed1 #-}
 
 
 -- | Map monadic action over pairs of vector indices and items and
