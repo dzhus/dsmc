@@ -162,7 +162,7 @@ addM !(r11, r12, r13) !(r21, r22, r23) =
 -- | Build cartesian axes from yaw and pitch with 0 roll. Angles are
 -- in radians.
 buildCartesian :: Double -> Double -> (Vec3, Vec3, Vec3)
-buildCartesian yaw pitch = (u, v, normalize w)
+buildCartesian yaw pitch = (u, v, w)
     where u = (cos yaw * cos pitch, sin yaw * cos pitch, sin pitch)
           v = (- (sin yaw), cos yaw, 0)
           w = u >< v
