@@ -14,13 +14,10 @@ module DSMC
 where
 
 import Control.Monad
-import Control.Monad.Primitive (PrimMonad)
 
 import Control.Parallel.Stochastic
 
 import qualified Data.Array.Repa as R
-
-import System.Random.MWC
 
 import DSMC.Cells
 import DSMC.Domain
@@ -30,14 +27,15 @@ import DSMC.Particles
 import DSMC.Surface
 import DSMC.Traceables hiding (trace)
 import DSMC.Util
-
 import Debug.Trace
 
 
 -- | Perform DSMC simulation, return total iterations count, final
 -- particle distribution and field of averaged macroscopic parameters.
-simulate :: PrimMonad m =>
-            Domain
+--
+-- This is an IO action since system entropy source is polled for
+-- seeds.
+simulate :: Domain
          -> Body
          -> Flow
          -> Time
@@ -57,7 +55,7 @@ simulate :: PrimMonad m =>
          -> Int
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
-         -> m (Int, Ensemble, MacroField)
+         -> IO (Int, Ensemble, MacroField)
 simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
     let
         -- Simulate evolution of the particle system for one time
@@ -115,22 +113,22 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
               return (n, ens', field)
     in do
       -- Global seeds
-      gs <- replicateM gsplit $ create >>= save
+      gs <- replicateM gsplit $ randomSeed
 
       -- Interface domain seeds
-      s1 <- create >>= save
-      s2 <- create >>= save
-      s3 <- create >>= save
-      s4 <- create >>= save
-      s5 <- create >>= save
-      s6 <- create >>= save
+      s1 <- randomSeed
+      s2 <- randomSeed
+      s3 <- randomSeed
+      s4 <- randomSeed
+      s5 <- randomSeed
+      s6 <- randomSeed
 
       -- Possibly sample initial particle distribution
       startEnsemble <- if emptyStart
                        then return emptyEnsemble
                        else do
                          -- Forget the initial sampling seed
-                         is <- create >>= save
+                         is <- randomSeed
                          return $ fst $ initializeParticles domain flow body is
 
       -- Start the process

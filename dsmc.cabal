@@ -30,6 +30,7 @@ library
 
   other-modules:
     Control.Parallel.Stochastic,
+    Data.Splittable,
     DSMC.Util
 
   build-depends:
@@ -37,6 +38,7 @@ library
     base         == 4.*,
     bytestring   == 0.9.*,
     containers   == 0.4.*,
+    entropy      == 0.2.*,
     mwc-random   >= 0.12.0.1,
     parallel     == 3.2.*,
     primitive    == 0.4.*,

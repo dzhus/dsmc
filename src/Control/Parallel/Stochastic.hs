@@ -16,70 +16,12 @@ module Control.Parallel.Stochastic
 
 where
 
-import Prelude hiding (splitAt)
-import qualified Prelude as P
-
 import Control.Monad.ST
 import Control.Parallel.Strategies
 
-import qualified Data.Vector.Unboxed as VU
-
 import System.Random.MWC
 
-
--- | Class of tasks which may be splitted into subtasks and combined
--- back into one task.
---
--- 'splitAt' and 'splitIn' must preserve linear ordering on elements
--- of task, if there's any.
-class Split source where
-    -- | Split the source in two subsources given the size of the first source.
-    splitAt :: Int
-            -> source
-            -> (source, source)
-
-    -- | Calculate the overall size of the source
-    size :: source -> Int
-
-    splitIn :: Int
-            -- ^ Split the source into that many subsources of equal
-            -- size. This number is capped to the size of source if it
-            -- exceeds it.
-            -> source
-            -> [source]
-    splitIn n l | n < 1 = error "Can't split in less than one chunk!"
-                | n > (size l) = splitIn (size l) l
-                | otherwise =
-                    let
-                        partSize = (size l) `div` n
-                        splitIn1 acc 1 rest = acc ++ [rest]
-                        splitIn1 acc m rest = splitIn1 (acc ++ [v1]) (m - 1) v2
-                            where
-                              (v1, v2) = splitAt partSize rest
-                    in
-                      splitIn1 [] n l
-    {-# INLINE splitIn #-}
-
-
-class Combine result where
-    -- | Combine list of results, preserving linear ordering.
-    combine :: [result] -> result
-
-
-instance Split [s] where
-    splitAt = P.splitAt
-    size = P.length
-
-instance Combine [s] where
-    combine = concat
-
-
-instance (VU.Unbox s) => Split (VU.Vector s) where
-    splitAt = VU.splitAt
-    size = VU.length
-
-instance (VU.Unbox r) => Combine (VU.Vector r) where
-    combine = VU.concat
+import Data.Splittable
 
 
 -- | Convert ST action with PRNG state into a pure function of seed.

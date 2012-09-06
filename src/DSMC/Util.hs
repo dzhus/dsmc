@@ -8,6 +8,7 @@ module DSMC.Util
     , SquareRoots
     , fromUnboxed1
     , iforM_
+    , randomSeed
     , Time
     )
 
@@ -15,12 +16,24 @@ where
 
 import Prelude hiding (Just, Nothing, Maybe, fst)
 
+import Data.Bits
+import Data.Word
+
+import Data.Functor
+import Data.List
+
+import qualified Data.ByteString as BS
+
 import Data.Strict.Maybe
 import Data.Strict.Tuple
 
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
+import System.Entropy
+import System.Random.MWC
+
+import Data.Splittable
 
 -- | Results of solving a quadratic equation.
 type SquareRoots = Maybe (Pair Double Double)
@@ -63,6 +76,24 @@ iforM_ :: (Monad m, VU.Unbox a) =>
        -> m ()
 iforM_ v = VU.forM_ (VU.imap (,) v)
 {-# INLINE iforM_ #-}
+
+
+-- | Fetch vector of random Word32 values from system entropy source.
+randomWord32Vector :: Int -> IO (VU.Vector Word32)
+randomWord32Vector n =
+    let
+        -- Left fold accumulator to shift Word8 onto Word32
+        accum a o = (a `shiftL` 8) .|. fromIntegral o
+    in do
+      w8stream <- getEntropy (n * 4)
+      -- Split the stream into 4-length lists of Word8
+      let w8s = map BS.unpack $ splitIn n w8stream
+      return $ VU.fromList $ map (foldl' accum 0) w8s
+
+
+-- | Fetch new RNG seed from system entropy source.
+randomSeed :: IO Seed
+randomSeed = toSeed <$> randomWord32Vector 256
 
 
 -- | Time in seconds.
