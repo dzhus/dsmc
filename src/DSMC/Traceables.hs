@@ -36,7 +36,7 @@ module DSMC.Traceables
 
 where
 
-import Prelude hiding (Just, Nothing, Maybe, fst, snd, reverse)
+import Prelude hiding (Just, Nothing, Maybe, fst, snd)
 
 import Data.Functor
 import Data.Strict.Maybe
@@ -424,7 +424,7 @@ complementTraces ((sp@(HitPoint ts _) :!: ep):xs) =
     where
       flipNormals :: HitSegment -> HitSegment
       flipNormals !((HitPoint t1 n1) :!: (HitPoint t2 n2)) =
-          (HitPoint t1 (reverse <$> n1)) :!: (HitPoint t2 (reverse <$> n2))
+          (HitPoint t1 (invert <$> n1)) :!: (HitPoint t2 (invert <$> n2))
       {-# INLINE flipNormals #-}
       -- Start from infinity if first hitpoint is finite
       start = if (isInfinite ts)

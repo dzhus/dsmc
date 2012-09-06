@@ -20,7 +20,6 @@ module DSMC.Util.Vector
     , normalize
     , invert
     , distance
-    , reverse
     , moveBy
     -- * Matrix operations
     , mxv
@@ -144,12 +143,6 @@ moveBy :: Point
        -> Point
 moveBy !p !v !t = p <+> (v .^ t)
 {-# INLINE moveBy #-}
-
-
--- | Scale vector by -1.
-reverse :: Vec3 -> Vec3
-reverse !v = v .^ (-1)
-{-# INLINE reverse #-}
 
 
 -- | Add two matrices.
