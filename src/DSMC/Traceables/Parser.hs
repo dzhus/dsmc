@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Parser for body definitions.
 --
@@ -57,6 +58,7 @@ where
 import Prelude as P
 
 import Control.Applicative
+import qualified Control.Exception as E
 import Control.Monad
 
 import Control.Monad.Trans.Class
@@ -276,6 +278,11 @@ parseBody input =
       Left msg -> Left msg
 
 
--- | Read body definition from file.
+-- | Read body definition from file. If parsing fails or IOError when
+-- reading file occurs, return error message.
 parseBodyFile :: FilePath -> IO (Either String T.Body)
-parseBodyFile file = parseBody <$> B.readFile file
+parseBodyFile file = do
+  res <- E.try $ B.readFile file
+  return $ case res of
+             Right d -> parseBody d
+             Left e -> Left $ show (e :: E.IOException)
