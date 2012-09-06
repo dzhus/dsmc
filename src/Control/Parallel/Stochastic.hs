@@ -1,5 +1,4 @@
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 {-|
 
@@ -45,7 +44,7 @@ parMapST f = parMap rpar (\(p, seed) -> purifyRandomST (`f` p) seed)
 {-# INLINE parMapST #-}
 
 
--- | Split the given source, process every subsource in parallel and
+-- | Split the given source, process subsources in parallel and
 -- combine the results.
 splitParMapST :: (Split task, Combine result) =>
                  RandomFunction task result
