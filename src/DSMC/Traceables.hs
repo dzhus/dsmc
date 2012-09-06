@@ -337,7 +337,7 @@ trace !(Cone n c _ m ta odelta) !(pos, v) =
       c1 = dotM v     delta m
       c0 = dotM delta delta m
       roots = solveq c2 (2 * c1) c0
-      normal !u = normalize $ nx .^ (1 / ta)  <-> ny .^ ta
+      normal !u = normalize $ nx .^ (1 / ta) <-> ny .^ ta
           where h = u <-> c
                 -- Component of h parallel to cone axis
                 ny' = n .^ (n .* h)
