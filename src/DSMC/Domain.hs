@@ -15,24 +15,28 @@ module DSMC.Domain
     , getDimensions
     , getCenter
     , makeDomain
-    , clipToDomain
-    , openBoundaryInjection
+    -- * Flow boundary
     , initializeParticles
-    , freeVolume
+    , openBoundaryInjection
     , DomainSeeds
+    , clipToDomain
+    -- * Free volume calculation
+    , freeVolume
+    , freeVolumes
     )
 
 where
 
 import Control.Monad.ST
 
-import Control.Parallel.Stochastic
-
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
+import qualified Data.Vector as V
 
 import System.Random.MWC
 import System.Random.MWC.Distributions (normal)
+
+import Control.Parallel.Stochastic
 
 import DSMC.Particles
 import DSMC.Traceables
@@ -209,15 +213,14 @@ clipToDomain (Domain xmin xmax ymin ymax zmin zmax) ens =
       filterEnsemble pred' ens
 
 
--- | Volume of a domain unoccupied by a given body.
+-- | Volume of a domain unoccupied by a given body, in m^3.
 --
 -- We use Monte Carlo method to calculate the approximate body volume
--- to then subtract it from the overall domain volume.
+-- and then subtract it from the overall domain volume.
 freeVolume :: Domain 
            -> Body 
            -> Int 
-           -- ^ Use that many points to approximate the fraction of
-           -- domain occupied by body.
+           -- ^ Use that many points to approximate the body volume.
            -> GenST s
            -> ST s (Double)
 freeVolume d@(Domain xmin xmax ymin ymax zmin zmax) body testPoints g = do
@@ -230,3 +233,14 @@ freeVolume d@(Domain xmin xmax ymin ymax zmin zmax) body testPoints g = do
   return $ (volume d) * 
              (fromIntegral (testPoints - occupiedPoints)) /
              (fromIntegral testPoints)
+
+
+-- | Sequential 'freeVolume' for a vector of domains.
+freeVolumes :: Body
+            -> Int
+            -> GenST s
+            -> V.Vector Domain
+            -> ST s (VU.Vector Double)
+freeVolumes body testPoints g doms =
+    VU.generateM (V.length doms)
+          (\i -> freeVolume (doms V.! i) body testPoints g)
