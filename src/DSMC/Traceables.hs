@@ -8,6 +8,9 @@ This module provides constructors for complex bodies as well as
 routines to compute intersections of such bodies with ray. In DSMC it
 is used to calculate points at which particles hit the body surface.
 
+Gas-surface interactions are not handled by this module, see
+'DSMC.Surface' instead.
+
 -}
 
 module DSMC.Traceables
