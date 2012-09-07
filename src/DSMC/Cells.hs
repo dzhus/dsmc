@@ -29,8 +29,10 @@ module DSMC.Cells
     , makeUniformIndexer
     -- * Monadic interface
     , GridMonad
-    , GridOptions(..)
+    , GridWares(..)
     , runGrid
+    , gridDomains
+    , cellVolumes
     )
 
 where
@@ -43,12 +45,17 @@ import Control.Monad.Trans.Reader
 import Data.Strict.Maybe
 
 import qualified Data.Array.Repa as R
+import qualified Data.Array.Repa.Repr.Vector as R
 
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
+import qualified Data.Vector as V
+
+import Control.Parallel.Stochastic
 
 import DSMC.Domain
 import DSMC.Particles
+import DSMC.Traceables
 import DSMC.Util
 import DSMC.Util.Vector
 
@@ -161,6 +168,7 @@ classifyParticles (cellCount, classify) ens' = runST $ do
 -- | Domain divided in uniform grid with given steps by X, Y and Z
 -- axes.
 data Grid = UniformGrid !Domain !Double !Double !Double
+            deriving Show
 
 
 -- | Return grid cell count and classifier for a grid.
@@ -208,24 +216,55 @@ makeUniformIndexer (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
               (x, y, z)
 
 
-data GridOptions =
-    GridOptions { classifier :: (Int, Classifier)
-                -- ^ Cell count and classifier function.
-                , indexer :: Int -> Point
-                -- ^ Indexer function.
-                }
+-- | Build vector of domains corresponding to cells of grid.
+gridDomains :: Monad m => Grid -> m (V.Vector Domain)
+gridDomains g@(UniformGrid _ hx hy hz) =
+    let
+        ixer = makeUniformIndexer g
+        (count, _) = makeUniformClassifier g
+    in do
+       doms <- R.computeP $ R.fromFunction (R.ix1 $ count)
+           (\(R.Z R.:. cellNumber) ->
+                makeDomain (ixer cellNumber) hx hy hz)
+       return $ R.toVector doms
 
 
--- | Monad used to keep grid options. Due to the low-level 'Cells'
--- structure we use to store particles sorted in cells, things may
--- break badly if improper/inconsistent classifier/indexer parameters
--- are used with cells structure. See 'MacroSamplingMonad'.
-type GridMonad = Reader GridOptions
+-- | Calculate volumes of grid cells wrt body within the domain. For
+-- every cell, 'freeVolume' is called with the domain of cell.
+-- Calculation is performed in parallel.
+--
+-- Since our grid are static, this is done only once when the grid is
+-- first defined.
+cellVolumes :: Monad m =>
+               ParallelSeeds
+            -- ^ One-use seeds for cut cell volume approximation.
+            -> Grid 
+            -> Body 
+            -> Int
+            -> m (VU.Vector Double)
+cellVolumes seeds grid b testPoints = do
+  domains <- gridDomains grid
+  return $ fst $ splitParMapST (freeVolumes b testPoints) domains seeds
+
+
+data GridWares =
+    GridWares { classifier :: (Int, Classifier)
+              -- ^ Cell count and classifier function.
+              , indexer :: Int -> Point
+              }
+
+
+-- | Monad used to keep grid options and cell volumes. Due to the
+-- low-level 'Cells' structure we use to store particles sorted in
+-- cells, things may break badly if improper/inconsistent
+-- classifier/indexer parameters are used with cells structure. See
+-- 'MacroSamplingMonad'.
+type GridMonad = Reader GridWares
 
 
 -- | Run action using spatial subdivision.
 runGrid :: GridMonad a -> Grid -> a
 runGrid r subdiv = runReader r $
-                   GridOptions
+                   GridWares
                    (makeUniformClassifier subdiv)
                    (makeUniformIndexer subdiv)
