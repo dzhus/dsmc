@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Data.Splittable 
     ( Split(..)
     , Combine(..)
@@ -10,7 +13,7 @@ import qualified Prelude as P
 
 import qualified Data.ByteString as BS
 
-import qualified Data.Vector.Unboxed as VU
+import qualified Data.Vector.Generic as VG
 
     
 -- | Class of tasks (containers which hold input data) which may be
@@ -62,12 +65,12 @@ instance Combine [s] where
     combine = concat
 
 
-instance (VU.Unbox s) => Split (VU.Vector s) where
-    splitAt = VU.splitAt
-    size = VU.length
+instance (VG.Vector v e) => Split (v e) where
+    splitAt = VG.splitAt
+    size = VG.length
 
-instance (VU.Unbox r) => Combine (VU.Vector r) where
-    combine = VU.concat
+instance (VG.Vector v e) => Combine (v e) where
+    combine = VG.concat
 
 
 instance Split BS.ByteString where

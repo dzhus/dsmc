@@ -78,7 +78,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
 
               return $! (trace (show $ R.extent e'') e'', gseeds', dseeds')
 
-        macroSubdiv :: UniformGrid
+        macroSubdiv :: Grid
         macroSubdiv = UniformGrid domain mx my mz
 
         -- Check if two consecutive particle ensemble states
@@ -132,6 +132,6 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
                          return $ fst $ initializeParticles domain flow body is
 
       -- Start the process
-      return $ fst $ startMacroSampling
+      return $ fst $ runMacroSampling
                  (sim1 (startEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False 0)
                  macroSubdiv ssteps

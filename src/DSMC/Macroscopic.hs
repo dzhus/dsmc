@@ -8,8 +8,8 @@ We use regular spatial grid and time averaging for sampling. Sampling
 should start after particle system has reached steady state. Samples
 are then collected in each cell for a certain number of time steps.
 
-Sampling is performed in 'MacroSamplingMonad' to ensure that no wrong
-parameters get passed to sample collecting routines.
+Sampling is performed in 'MacroSamplingMonad' to ensure consistency of
+averaging process.
 
 -}
 
@@ -19,7 +19,8 @@ module DSMC.Macroscopic
     , MacroParameters
     -- * Macroscopic sampling monad
     , MacroSamplingMonad
-    , startMacroSampling
+    , SamplingState(..)
+    , runMacroSampling
     , updateSamples
     , getField
     )
@@ -61,44 +62,44 @@ type MacroSamples = R.Array R.U R.DIM1 MacroParameters
 
 
 -- | Array of central points of grid cells with averaged macroscopic
--- parameters.
+-- parameters attached to every point.
 type MacroField = R.Array R.U R.DIM1 (Point, MacroParameters)
 
 
 -- | Monad which keeps track of sampling process data and stores
 -- options of macroscopic sampling.
 --
--- State contains counter for averaging steps left and current samples
--- (note that this is a partial sum till sampling is complete). If
--- Nothing, then averaging has not started yet, while -1 means that
--- it's complete.
+-- GridMonad is used to ensure that only safe values for cell count
+-- and classifier are used in 'updateSamples' and 'averageSamples'
+-- (that may otherwise cause unbounded access errors).
 --
--- We use this to make sure that only safe values for cell count and
--- classifier are used in 'updateSamples' and 'averageSamples' (that
--- may otherwise cause unbounded access errors).
+-- Inner Reader Monad stores averaging steps setting.
 type MacroSamplingMonad =
-    StateT (Maybe (Int, MacroSamples)) (Reader MacroSamplingOptions)
+    StateT SamplingState (ReaderT Int GridMonad)
 
 
--- | Options for macroscopic sampling: uniform grid and averaging
--- steps count.
-data MacroSamplingOptions =
-    MacroSamplingOptions { _sorting :: (Int, Classifier)
-                         , _indexer :: Int -> Point
-                         , _averagingSteps :: Int
-                         }
+-- | State of sampling process.
+data SamplingState = None
+                   -- ^ Sampling has not started yet.
+                   | Incomplete Int MacroSamples
+                   -- ^ Sampling is in progress, not enough samples
+                   -- yet. Integer field indicates how many steps are
+                   -- left.
+                   | Complete MacroSamples
+                   -- ^ Averaging is complete, use 'getField' to
+                   -- unload the samples.
 
 
 -- | Fetch macroscopic field if averaging is complete.
 getField :: MacroSamplingMonad (Maybe MacroField)
 getField = do
-  (cellCount, _) <- lift $ asks _sorting
-  indexer <- lift $ asks _indexer
+  (cellCount, _) <- lift $ lift $ asks classifier
+  ixer <- lift $ lift $ asks indexer
   res <- get
   case res of
-    Just ((-1), samples) -> do
+    Complete samples -> do
              let centralPoints = R.fromFunction (R.ix1 $ cellCount)
-                                 (\(R.Z R.:. cellNumber) -> indexer cellNumber)
+                                 (\(R.Z R.:. cellNumber) -> ixer cellNumber)
              f <- R.computeP $ R.zipWith (,) centralPoints samples
              return $ Just f
     _ -> return $ Nothing
@@ -110,19 +111,15 @@ emptySample = (0, (0, 0, 0), 0)
 
 
 -- | Run 'MacroSamplingMonad' action with given sampling options and
--- last state with macroscopic samples.
-startMacroSampling :: MacroSamplingMonad r
-                   -> UniformGrid
-                   -- ^ Grid used to sample macroscopic parameters.
-                   -> Int
-                   -- ^ Averaging steps count.
-                   -> (r, Maybe (Int, MacroSamples))
-startMacroSampling f subdiv ssteps = 
-    runReader (runStateT f Nothing) $
-              MacroSamplingOptions
-              (makeUniformClassifier subdiv)
-              (makeUniformIndexer subdiv)
-              ssteps
+-- return final 'Complete' state with macroscopic samples.
+runMacroSampling :: MacroSamplingMonad r
+                 -> Grid
+                 -- ^ Grid used to sample macroscopic parameters.
+                 -> Int
+                 -- ^ Averaging steps count.
+                 -> (r, SamplingState)
+runMacroSampling f subdiv ssteps = 
+    runGrid (runReaderT (runStateT f None) ssteps) subdiv
 
 
 -- | Create empty 'MacroSamples' array.
@@ -145,20 +142,21 @@ updateSamples ens =
         addCellParameters !(n1, v1, c1) !(n2, v2, c2) =
             (n1 + n2, v1 <+> v2, c1 + c2)
     in do
-      sorting@(cellCount, _) <- lift $ asks _sorting
+      sorting@(cellCount, _) <- lift $ lift $ asks classifier
 
-      maxSteps <- lift $ asks _averagingSteps
+      maxSteps <- lift $ ask
 
       sampling <- get
 
       -- n is steps left for averaging
       let (n, oldSamples) =
               case sampling of
-                Nothing -> (maxSteps, initializeSamples cellCount)
-                Just o -> o
+                None -> (maxSteps, initializeSamples cellCount)
+                Incomplete s o -> (s, o)
+                Complete _ -> error "updateSamples called, but pool's closed."
           weight = 1 / fromIntegral maxSteps
           -- Sort particles into macroscopic cells for sampling
-          sorted = sortParticles sorting ens
+          sorted = classifyParticles sorting ens
           -- Sampling results from current step
           stepSamples = cellMap (\_ c -> sampleMacroscopic c weight) sorted
        -- Add samples from current step to all sum of samples collected so
@@ -166,10 +164,15 @@ updateSamples ens =
       !newSamples <- R.computeP $
                      R.zipWith addCellParameters oldSamples stepSamples
 
-      -- Update state of sampling process
-      put $ Just (n - 1, newSamples)
+      let fin = (n == 0)
 
-      return (n == 0)
+      -- Update state of sampling process
+      put $ case fin of 
+              True -> Complete newSamples
+              False -> Incomplete (n - 1) newSamples
+
+      return fin
+
 
 -- | Sample macroscopic values in a cell.
 sampleMacroscopic :: S.Maybe CellContents

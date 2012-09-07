@@ -2,12 +2,15 @@
 
 {-|
 
-Particle tracking for uniform spatial grid for DSMC.
+Particle tracking for spatial grid for DSMC.
 
-This module is used to sort particles into ordered vector of cells for
-collision step or macroscopic parameter sampling. We do not provide
-any special cell datatype since it varies which cell data is required
-on every step, so only particles in every cell are stored.
+This module is used to sort (classify) particles into ordered vector
+of cells for collision step or macroscopic parameter sampling. We do
+not provide any special cell datatype since it varies which cell data
+is required on every step, so only particles in every cell are stored.
+
+Monad is provided for storing grid options during the whole program
+run.
 
 -}
 
@@ -19,11 +22,15 @@ module DSMC.Cells
     , cellMap
     -- * Particle tracking
     , Classifier
-    , sortParticles
-    -- * Uniform subdivision
-    , UniformGrid(..)
+    , classifyParticles
+    -- * Grids
+    , Grid(..)
     , makeUniformClassifier
     , makeUniformIndexer
+    -- * Monadic interface
+    , GridMonad
+    , GridOptions(..)
+    , runGrid
     )
 
 where
@@ -31,6 +38,7 @@ where
 import Prelude hiding (Just, Nothing, Maybe)
 
 import Control.Monad.ST
+import Control.Monad.Trans.Reader
 
 import Data.Strict.Maybe
 
@@ -99,16 +107,16 @@ classifyAll classify ens = do
   return $! R.toUnboxed classes'
 
 
--- | Sort particle ensemble into @N@ cells using the classifier
+-- | Classify particle ensemble into @N@ cells using the classifier
 -- function.
 --
 -- Classifier's extent must match @N@, yielding numbers between @0@
 -- and @N-1@.
-sortParticles :: (Int, Classifier)
+classifyParticles :: (Int, Classifier)
               -- ^ Cell count and classifier.
               -> Ensemble
               -> Cells
-sortParticles (cellCount, classify) ens' = runST $ do
+classifyParticles (cellCount, classify) ens' = runST $ do
   classes <- classifyAll classify ens'
 
   let ens = R.toUnboxed ens'
@@ -131,35 +139,32 @@ sortParticles (cellCount, classify) ens' = runST $ do
   -- Starting positions for cells inside cell array
   let !starts = VU.prescanl' (+) 0 lengths
 
-  -- Calculate indices for particles inside sorted grand vector of
+  -- Calculate indices for particles inside classified grand vector of
   -- cell contents (inverse mapping index)
-  sortedIds' <- VUM.replicate particleCount 0
+  classifiedIds' <- VUM.replicate particleCount 0
   iforM_ classes (\(particleNumber, cellNumber) -> do
        let i = (starts VU.! cellNumber) + (posns VU.! particleNumber)
-       VUM.unsafeWrite sortedIds' i particleNumber
+       VUM.unsafeWrite classifiedIds' i particleNumber
        return ())
-  sortedIds <- VU.unsafeFreeze sortedIds'
+  classifiedIds <- VU.unsafeFreeze classifiedIds'
 
   -- Fill the resulting array in parallel
-  sortedEns <- R.computeP $
+  classifiedEns <- R.computeP $
                R.fromFunction
                     (R.ix1 $ particleCount)
                     (\(R.Z R.:. position) ->
-                           ens VU.! (sortedIds VU.! position))
+                           ens VU.! (classifiedIds VU.! position))
 
-  return $! Cells (R.toUnboxed sortedEns) cellCount starts lengths
-
+  return $! Cells (R.toUnboxed classifiedEns) cellCount starts lengths
 
 
 -- | Domain divided in uniform grid with given steps by X, Y and Z
 -- axes.
-data UniformGrid = UniformGrid !Domain !Double !Double !Double
+data Grid = UniformGrid !Domain !Double !Double !Double
 
 
--- | Return grid cell count and classifier for uniform grid over
--- domain with given spatial steps.
-makeUniformClassifier :: UniformGrid
-                      -> (Int, Classifier)
+-- | Return grid cell count and classifier for a grid.
+makeUniformClassifier :: Grid -> (Int, Classifier)
 makeUniformClassifier (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
     (xsteps * ysteps * zsteps, classify)
     where
@@ -176,10 +181,13 @@ makeUniformClassifier (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
               nx + ny * xsteps + nz * xsteps * ysteps
 
 
--- | Return indexing function which maps cell numbers to central
--- points of uniform cells.
-makeUniformIndexer :: UniformGrid
-                   -> (Int -> Point)
+-- | Function which maps cell numbers to central points of uniform
+-- cells.
+type Indexer = Int -> Point
+
+
+-- | Return indexer for a grid.
+makeUniformIndexer :: Grid -> Indexer
 makeUniformIndexer (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
     indefy
     where
@@ -198,3 +206,26 @@ makeUniformIndexer (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
                 x = xmin + fromIntegral nx * hx + hx / 2
             in
               (x, y, z)
+
+
+data GridOptions =
+    GridOptions { classifier :: (Int, Classifier)
+                -- ^ Cell count and classifier function.
+                , indexer :: Int -> Point
+                -- ^ Indexer function.
+                }
+
+
+-- | Monad used to keep grid options. Due to the low-level 'Cells'
+-- structure we use to store particles sorted in cells, things may
+-- break badly if improper/inconsistent classifier/indexer parameters
+-- are used with cells structure. See 'MacroSamplingMonad'.
+type GridMonad = Reader GridOptions
+
+
+-- | Run action using spatial subdivision.
+runGrid :: GridMonad a -> Grid -> a
+runGrid r subdiv = runReader r $
+                   GridOptions
+                   (makeUniformClassifier subdiv)
+                   (makeUniformIndexer subdiv)
