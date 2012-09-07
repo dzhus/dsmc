@@ -44,16 +44,16 @@ parMapST f = parMap rpar (\(p, seed) -> purifyRandomST (`f` p) seed)
 {-# INLINE parMapST #-}
 
 
--- | Split the given source, process subsources in parallel and
--- combine the results.
-splitParMapST :: (Split task, Combine result) =>
-                 RandomFunction task result
-              -> task
-              -> [Seed]
-              -> (result, [Seed])
-splitParMapST f task oldSeeds =
+-- | Split the given source, process subsources in parallel, return
+-- combined results and used seeds.
+splitParMapST :: (Split source, Combine result) =>
+                 RandomFunction source result
+              -> source
+              -> ParallelSeeds
+              -> (result, ParallelSeeds)
+splitParMapST f wholeSource oldSeeds =
     let
-        sources = (splitIn (length oldSeeds) task)
+        sources = (splitIn (length oldSeeds) wholeSource)
         (results, newSeeds) = unzip $ parMapST f $ zip sources oldSeeds
     in
       (combine results, newSeeds)
