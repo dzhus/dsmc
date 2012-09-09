@@ -209,3 +209,18 @@
    How to let (Reducer c m) know that we're building with rpar in Eval
    monad?
 * Other issues
+
+* Collision logic
+
+  Follow the MSF scheme.
+
+  Average frequency over all collisional pairs is given for reference only.
+  In real world implementation, define some sufficiently large number s_max,
+  then every collision between two particles with relative velocity c_r and
+  collision cross-section ccs_t is accepted with probability (c_r * ccs_t) / (s_max).
+
+  Total number of collisions K_max in every cell follows Poisson
+  distribution. However, instead we can sample time intervals between
+  collisions (tau) according to inverse-exponential law:
+
+  df(tau) = N*(N-1)/2*s_max*exp(-tau*s_max*((N-1)*N/2))*d(tau).
