@@ -31,7 +31,6 @@ module DSMC.Cells
     , GridMonad
     , GridWares(..)
     , runGrid
-    , gridDomains
     , cellVolumes
     )
 
@@ -80,7 +79,7 @@ type CellContents = VU.Vector Particle
 -- should be maintained separately from cell contents. We use this
 -- approach because collision sampling and macroscopic parameter
 -- calculation require different
-data Cells = Cells !(VU.Vector Particle) !Int !(VU.Vector Int) !(VU.Vector Int)
+data Cells = Cells !CellContents !Int !(VU.Vector Int) !(VU.Vector Int)
 
 
 -- | Assuming there's a linear ordering on all cells, Classifier must
@@ -108,8 +107,8 @@ cellMap f !cells@(Cells _ l _ _) =
 
 
 -- | Calculate cell numbers for particle ensemble.
-classifyAll :: Monad m => Classifier -> Ensemble -> m (VU.Vector Int)
-classifyAll classify ens = do
+classifyAll :: Classifier -> Ensemble -> (VU.Vector Int)
+classifyAll classify ens = runST $ do
   classes' <- R.computeP $ R.map classify ens
   return $! R.toUnboxed classes'
 
@@ -124,10 +123,9 @@ classifyParticles :: (Int, Classifier)
               -> Ensemble
               -> Cells
 classifyParticles (cellCount, classify) ens' = runST $ do
-  classes <- classifyAll classify ens'
-
   let ens = R.toUnboxed ens'
       particleCount = VU.length ens
+      classes = classifyAll classify ens'
 
   -- Sequentially calculate particle indices inside cells and cell
   -- sizes.
@@ -217,12 +215,12 @@ makeUniformIndexer (UniformGrid d@(Domain xmin _ ymin _ zmin _) hx hy hz) =
 
 
 -- | Build vector of domains corresponding to cells of grid.
-gridDomains :: Monad m => Grid -> m (V.Vector Domain)
+gridDomains :: Grid -> V.Vector Domain
 gridDomains g@(UniformGrid _ hx hy hz) =
     let
         ixer = makeUniformIndexer g
         (count, _) = makeUniformClassifier g
-    in do
+    in runST $ do
        doms <- R.computeP $ R.fromFunction (R.ix1 $ count)
            (\(R.Z R.:. cellNumber) ->
                 makeDomain (ixer cellNumber) hx hy hz)
@@ -233,38 +231,52 @@ gridDomains g@(UniformGrid _ hx hy hz) =
 -- every cell, 'freeVolume' is called with the domain of cell.
 -- Calculation is performed in parallel.
 --
--- Since our grid are static, this is done only once when the grid is
--- first defined.
-cellVolumes :: Monad m =>
-               ParallelSeeds
+-- Since our grid are static, this is usually done only once when the
+-- grid is first defined. We throw away the used seeds.
+cellVolumes :: ParallelSeeds
             -- ^ One-use seeds for cut cell volume approximation.
             -> Grid 
             -> Body 
             -> Int
-            -> m (VU.Vector Double)
-cellVolumes seeds grid b testPoints = do
-  domains <- gridDomains grid
-  return $ fst $ splitParMapST (freeVolumes b testPoints) domains seeds
-
-
-data GridWares =
-    GridWares { classifier :: (Int, Classifier)
-              -- ^ Cell count and classifier function.
-              , indexer :: Int -> Point
-              }
+            -> (VU.Vector Double)
+cellVolumes seeds grid b testPoints =
+  fst $
+  splitParMapST (freeVolumes b testPoints)
+  (gridDomains grid) seeds
 
 
 -- | Monad used to keep grid options and cell volumes. Due to the
 -- low-level 'Cells' structure we use to store particles sorted in
 -- cells, things may break badly if improper/inconsistent
--- classifier/indexer parameters are used with cells structure. See
+-- classifier/indexer parameters are used with cells structure. It
+-- also helps to maintain precalculated cell volumes. See
 -- 'MacroSamplingMonad'.
 type GridMonad = Reader GridWares
 
 
+-- | Data stored in 'GridMonad'.
+data GridWares =
+    GridWares { classifier :: (Int, Classifier)
+              -- ^ Cell count and classifier function.
+              , indexer :: Int -> Point
+              , volumes :: !(VU.Vector Double)
+              -- ^ Vector of cell volumes.
+              }
+
+
 -- | Run action using spatial subdivision.
-runGrid :: GridMonad a -> Grid -> a
-runGrid r subdiv = runReader r $
-                   GridWares
-                   (makeUniformClassifier subdiv)
-                   (makeUniformIndexer subdiv)
+runGrid :: GridMonad a 
+        -> ParallelSeeds 
+        -- ^ One-use seeds used for
+        -> Grid
+        -> Body
+        -- ^ Body within the domain of the grid.
+        -> Int
+        -- ^ Use that many points to approximate every cell volume.
+        -> a
+runGrid r seeds grid b testPoints =
+    runReader r $
+    GridWares
+    (makeUniformClassifier grid)
+    (makeUniformIndexer grid)
+    (cellVolumes seeds grid b testPoints)

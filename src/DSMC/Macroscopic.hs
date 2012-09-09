@@ -36,14 +36,19 @@ import qualified Data.Strict.Maybe as S
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
+import Control.Parallel.Stochastic
+
 import DSMC.Cells
 import DSMC.Particles
+import DSMC.Traceables
 import DSMC.Util
 import DSMC.Util.Vector
 
 
 -- | Macroscopic parameters calculated in every cell: particle count,
 -- mean absolute velocity, mean square of thermal velocity.
+--
+-- Particle count is non-integer because of averaging.
 --
 -- These are then post-processed into number density, flow velocity,
 -- pressure and translational temperature.
@@ -113,13 +118,17 @@ emptySample = (0, (0, 0, 0), 0)
 -- | Run 'MacroSamplingMonad' action with given sampling options and
 -- return final 'Complete' state with macroscopic samples.
 runMacroSampling :: MacroSamplingMonad r
+                 -> ParallelSeeds
                  -> Grid
                  -- ^ Grid used to sample macroscopic parameters.
+                 -> Body
+                 -> Int
+                 -- ^ Use that many points to approximate every cell volume.
                  -> Int
                  -- ^ Averaging steps count.
                  -> (r, SamplingState)
-runMacroSampling f subdiv ssteps = 
-    runGrid (runReaderT (runStateT f None) ssteps) subdiv
+runMacroSampling f seeds grid body testPoints ssteps = 
+    runGrid (runReaderT (runStateT f None) ssteps) seeds grid body testPoints
 
 
 -- | Create empty 'MacroSamples' array.

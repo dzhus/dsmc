@@ -53,10 +53,14 @@ simulate :: Domain
          -- ^ Spatial steps in X, Y, Z of grid used for macroscopic
          -- parameter sampling.
          -> Int
+         -- ^ Use that many test points to calculate volume of every
+         -- cell wrt body. Depends on Knudsen number calculated from
+         -- cell size.
+         -> Int
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
          -> IO (Int, Ensemble, MacroField)
-simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
+simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) volumePoints gsplit =
     let
         -- Simulate evolution of the particle system for one time
         -- step, updating seeds used for sampling stochastic
@@ -123,6 +127,9 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
       s5 <- randomSeed
       s6 <- randomSeed
 
+      -- Seeds for cell volume calculation
+      vs <- replicateM gsplit $ randomSeed
+
       -- Possibly sample initial particle distribution
       startEnsemble <- if emptyStart
                        then return emptyEnsemble
@@ -133,5 +140,7 @@ simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) gsplit =
 
       -- Start the process
       return $ fst $ runMacroSampling
-                 (sim1 (startEnsemble, gs, (s1, s2, s3, s4, s5, s6)) False 0)
-                 macroSubdiv ssteps
+                 (sim1
+                  (startEnsemble, gs, (s1, s2, s3, s4, s5, s6))
+                  False 0)
+                 vs macroSubdiv body volumePoints ssteps
