@@ -123,7 +123,7 @@ simulate domain body flow
           liftIO $ debugM rootLoggerName $
                    (if steady
                    then "Steady state"
-                   else "Not steadified yet") ++
+                   else "Not steady yet") ++
                    "; particles count: " ++
                    (show $ ensembleSize ens')
           case enough of
