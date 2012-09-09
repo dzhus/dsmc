@@ -15,7 +15,6 @@ where
 
 import Control.Monad
 
-import qualified Data.Array.Repa as R
 
 import Control.Parallel.Stochastic
 
@@ -27,7 +26,6 @@ import DSMC.Particles
 import DSMC.Surface
 import DSMC.Traceables hiding (trace)
 import DSMC.Util
-import Debug.Trace
 
 
 -- | Perform DSMC simulation, return total iterations count, final
@@ -67,22 +65,20 @@ simulate domain body flow
         -- Simulate evolution of the particle system for one time
         -- step, updating seeds used for sampling stochastic
         -- processes.
-      evolve :: Monad m =>
-                (Ensemble, ParallelSeeds, DomainSeeds)
-             -> m (Ensemble, ParallelSeeds, DomainSeeds)
+      evolve :: (Ensemble, ParallelSeeds, DomainSeeds)
+             -> (Ensemble, ParallelSeeds, DomainSeeds)
       evolve (ens, gseeds, dseeds) =
-        do
           let
             -- Inject new particles
             (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
-            
+
             -- Lagrangian step
             (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
 
             -- Filter out particles which left the domain
             e'' = clipToDomain domain e'
-
-          return $! (e'', gseeds', dseeds')
+          in
+            (e'', gseeds', dseeds')
 
       macroSubdiv :: Grid
       macroSubdiv = UniformGrid domain mx my mz
@@ -94,7 +90,7 @@ simulate domain body flow
         (abs $
          ((fromIntegral $ ensembleSize ens) /
           (fromIntegral $ ensembleSize prevEns) - 1)) < sepsilon
-      
+
       -- Helper which actually runs simulation and collects
         -- macroscopic data until enough samples in steady state are
       -- collected.
@@ -104,30 +100,25 @@ simulate domain body flow
            -> Int
            -- ^ Iteration counter.
            -> MacroSamplingMonad (Int, Ensemble, MacroField)
-      sim1 !oldState@(ens, _, _) steady n = do
-        !newState@(ens', _, _) <- evolve oldState
-        let !newSteady = steady || stabilized ens' ens
-
-        !enough <- case steady of
-                     False -> return False
-                     True -> updateSamples ens'
-
-        case enough of
-          False -> sim1 newState newSteady (n + 1)
-          True -> do
-            (Just field) <- getField
-            return (n, ens', field)
+      sim1 !oldState@(ens, _, _) steady n =
+        let
+          !newState@(ens', _, _) = evolve oldState
+          !newSteady = steady || stabilized ens' ens
+        in do
+          !enough <- case steady of
+            False -> return False
+            True -> updateSamples ens'
+          case enough of
+            False -> sim1 newState newSteady (n + 1)
+            True -> do
+              (Just field) <- getField
+              return (n, ens', field)
     in do
       -- Global seeds
       gs <- replicateM gsplit $ randomSeed
 
       -- Interface domain seeds
-      s1 <- randomSeed
-      s2 <- randomSeed
-      s3 <- randomSeed
-      s4 <- randomSeed
-      s5 <- randomSeed
-      s6 <- randomSeed
+      (s1:s2:s3:s4:s5:s6:_) <- replicateM 6 randomSeed
 
       -- Seeds for cell volume calculation
       vs <- replicateM gsplit $ randomSeed
