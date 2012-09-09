@@ -76,7 +76,9 @@ type MacroField = R.Array R.U R.DIM1 (Point, MacroParameters)
 --
 -- GridMonad is used to ensure that only safe values for cell count
 -- and classifier are used in 'updateSamples' and 'averageSamples'
--- (that may otherwise cause unbounded access errors).
+-- (that may otherwise cause unbounded access errors). Note that
+-- steady condition is not handled by this monad (instead, caller code
+-- should decide when to start averaging).
 --
 -- Inner Reader Monad stores averaging steps setting.
 type MacroSamplingMonad =
@@ -126,7 +128,7 @@ runMacroSampling :: MacroSamplingMonad r
                  -- ^ Use that many points to approximate every cell volume.
                  -> Int
                  -- ^ Averaging steps count.
-                 -> (r, SamplingState)
+                 -> DSMCRootMonad (r, SamplingState)
 runMacroSampling f seeds grid body testPoints ssteps = 
     runGrid (runReaderT (runStateT f None) ssteps) seeds grid body testPoints
 

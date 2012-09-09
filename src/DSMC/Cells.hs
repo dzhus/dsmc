@@ -251,7 +251,7 @@ cellVolumes seeds grid b testPoints =
 -- classifier/indexer parameters are used with cells structure. It
 -- also helps to maintain precalculated cell volumes. See
 -- 'MacroSamplingMonad'.
-type GridMonad = Reader GridWares
+type GridMonad = ReaderT GridWares DSMCRootMonad
 
 
 -- | Data stored in 'GridMonad'.
@@ -273,9 +273,9 @@ runGrid :: GridMonad a
         -- ^ Body within the domain of the grid.
         -> Int
         -- ^ Use that many points to approximate every cell volume.
-        -> a
+        -> DSMCRootMonad a
 runGrid r seeds grid b testPoints =
-    runReader r $
+    runReaderT r $
     GridWares
     (makeUniformClassifier grid)
     (makeUniformIndexer grid)

@@ -2,7 +2,13 @@
 
 {-|
 
-Simulation procedures.
+DSMC is an algorithm used for simulating rarefied gas flows.
+
+You define the simulation domain, the body inside this domain, gas
+flow parameters and several other options. DSMC iteratively models the
+behaviour of gas molecules according to time and space decoupling
+scheme for the Boltzmann equation. The result of simulation is a field
+of macroscopic parameters across the simulation domain.
 
 -}
 
@@ -14,7 +20,10 @@ module DSMC
 where
 
 import Control.Monad
+import Control.Monad.IO.Class
+import Data.Functor
 
+import System.Log.Logger
 
 import Control.Parallel.Stochastic
 
@@ -47,6 +56,8 @@ simulate :: Domain
          -- ^ Steadiness epsilon.
          -> Int
          -- ^ Step count limit in steady regime.
+         -> Surface
+         -- ^ Model for surface of body.
          -> (Double, Double, Double)
          -- ^ Spatial steps in X, Y, Z of grid used for macroscopic
          -- parameter sampling.
@@ -60,6 +71,7 @@ simulate :: Domain
          -> IO (Int, Ensemble, MacroField)
 simulate domain body flow
          dt emptyStart ex sepsilon ssteps
+         surface
          (mx, my, mz) volumePoints gsplit =
     let
         -- Simulate evolution of the particle system for one time
@@ -73,7 +85,7 @@ simulate domain body flow
             (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
 
             -- Lagrangian step
-            (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
+            (e', gseeds') = motion gseeds body dt surface e
 
             -- Filter out particles which left the domain
             e'' = clipToDomain domain e'
@@ -108,6 +120,12 @@ simulate domain body flow
           !enough <- case steady of
             False -> return False
             True -> updateSamples ens'
+          liftIO $ debugM rootLoggerName $
+                   (if steady
+                   then "Steady state"
+                   else "Not steadified yet") ++
+                   "; particles count: " ++
+                   (show $ ensembleSize ens')
           case enough of
             False -> sim1 newState newSteady (n + 1)
             True -> do
@@ -132,8 +150,8 @@ simulate domain body flow
                          return $ fst $ initializeParticles domain flow body is
 
       -- Start the process
-      return $ fst $ runMacroSampling
-                 (sim1
-                  (startEnsemble, gs, (s1, s2, s3, s4, s5, s6))
-                  False 0)
-                 vs macroSubdiv body volumePoints ssteps
+      fst <$> runMacroSampling
+              (sim1
+               (startEnsemble, gs, (s1, s2, s3, s4, s5, s6))
+               False 0)
+              vs macroSubdiv body volumePoints ssteps
