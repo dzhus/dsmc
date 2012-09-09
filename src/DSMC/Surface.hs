@@ -33,7 +33,8 @@ type Reflector s = GenST s -> Vec3 -> Vec3 -> ST s Vec3
 data Surface = CLL { bodyTemperature :: !Double
                    -- ^ Absolute temperature of surface.
                    , alpha :: !Double
-                   -- ^ Kinetic energy accomodation for normal velocity component.
+                   -- ^ Kinetic energy accomodation for normal
+                   -- velocity component.
                    , sigma :: !Double
                    -- ^ Accomodation for tangential momentum.
                    } |
@@ -41,8 +42,8 @@ data Surface = CLL { bodyTemperature :: !Double
                Diffuse { bodyTemperature :: !Double
                        -- ^ Absolute temperature of surface.
                        , mass :: !Double
-                       -- ^ Mass of reflected molecules (equal to
-                       -- that in incident flow).
+                       -- ^ Mass of reflected molecules (usually equal
+                       -- to that in incident flow).
                        } |
                -- ^ Diffuse reflection.
                Mirror
