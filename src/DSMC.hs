@@ -92,7 +92,7 @@ simulate domain body flow
           (fromIntegral $ ensembleSize prevEns) - 1)) < sepsilon
 
       -- Helper which actually runs simulation and collects
-        -- macroscopic data until enough samples in steady state are
+      -- macroscopic data until enough samples in steady state are
       -- collected.
       sim1 :: (Ensemble, ParallelSeeds, DomainSeeds)
            -> Bool
