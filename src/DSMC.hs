@@ -15,9 +15,9 @@ where
 
 import Control.Monad
 
-import Control.Parallel.Stochastic
-
 import qualified Data.Array.Repa as R
+
+import Control.Parallel.Stochastic
 
 import DSMC.Cells
 import DSMC.Domain
@@ -60,61 +60,63 @@ simulate :: Domain
          -- ^ Split Lagrangian step into that many independent
          -- parallel processes.
          -> IO (Int, Ensemble, MacroField)
-simulate domain body flow dt emptyStart ex sepsilon ssteps (mx, my, mz) volumePoints gsplit =
+simulate domain body flow
+         dt emptyStart ex sepsilon ssteps
+         (mx, my, mz) volumePoints gsplit =
     let
         -- Simulate evolution of the particle system for one time
         -- step, updating seeds used for sampling stochastic
         -- processes.
-        evolve :: Monad m =>
+      evolve :: Monad m =>
                 (Ensemble, ParallelSeeds, DomainSeeds)
              -> m (Ensemble, ParallelSeeds, DomainSeeds)
-        evolve (ens, gseeds, dseeds) =
-            do
-              let
-                  -- Inject new particles
-                  (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+      evolve (ens, gseeds, dseeds) =
+        do
+          let
+            -- Inject new particles
+            (e, dseeds') = openBoundaryInjection dseeds domain ex flow ens
+            
+            -- Lagrangian step
+            (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
 
-                  -- Lagrangian step
-                  (e', gseeds') = motion gseeds body dt (CLL 500 0.1 0.3) e
+            -- Filter out particles which left the domain
+            e'' = clipToDomain domain e'
 
-                  -- Filter out particles which left the domain
-                  e'' = clipToDomain domain e'
+          return $! (e'', gseeds', dseeds')
 
-              return $! (trace (show $ R.extent e'') e'', gseeds', dseeds')
+      macroSubdiv :: Grid
+      macroSubdiv = UniformGrid domain mx my mz
 
-        macroSubdiv :: Grid
-        macroSubdiv = UniformGrid domain mx my mz
-
-        -- Check if two consecutive particle ensemble states
-        -- correspond to steady regime.
-        stabilized :: Ensemble -> Ensemble -> Bool
-        stabilized ens prevEns =
-            (abs $
-             ((fromIntegral $ ensembleSize ens) /
-              (fromIntegral $ ensembleSize prevEns) - 1)) < sepsilon
-
-        -- Helper which actually runs simulation and collects
+      -- Check if two consecutive particle ensemble states
+      -- correspond to steady regime.
+      stabilized :: Ensemble -> Ensemble -> Bool
+      stabilized ens prevEns =
+        (abs $
+         ((fromIntegral $ ensembleSize ens) /
+          (fromIntegral $ ensembleSize prevEns) - 1)) < sepsilon
+      
+      -- Helper which actually runs simulation and collects
         -- macroscopic data until enough samples in steady state are
-        -- collected.
-        sim1 :: (Ensemble, ParallelSeeds, DomainSeeds)
-             -> Bool
-             -- ^ True if steady regime has been reached.
-             -> Int
-             -- ^ Iteration counter.
-             -> MacroSamplingMonad (Int, Ensemble, MacroField)
-        sim1 !oldState@(ens, _, _) steady n = do
-          !newState@(ens', _, _) <- evolve oldState
-          let !newSteady = steady || stabilized ens' ens
+      -- collected.
+      sim1 :: (Ensemble, ParallelSeeds, DomainSeeds)
+           -> Bool
+           -- ^ True if steady regime has been reached.
+           -> Int
+           -- ^ Iteration counter.
+           -> MacroSamplingMonad (Int, Ensemble, MacroField)
+      sim1 !oldState@(ens, _, _) steady n = do
+        !newState@(ens', _, _) <- evolve oldState
+        let !newSteady = steady || stabilized ens' ens
 
-          !enough <- case steady of
-                       False -> return False
-                       True -> updateSamples ens'
+        !enough <- case steady of
+                     False -> return False
+                     True -> updateSamples ens'
 
-          case enough of
-            False -> sim1 newState newSteady (n + 1)
-            True -> do
-              (Just field) <- getField
-              return (n, ens', field)
+        case enough of
+          False -> sim1 newState newSteady (n + 1)
+          True -> do
+            (Just field) <- getField
+            return (n, ens', field)
     in do
       -- Global seeds
       gs <- replicateM gsplit $ randomSeed
