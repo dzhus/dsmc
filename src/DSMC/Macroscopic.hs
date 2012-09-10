@@ -48,7 +48,7 @@ import DSMC.Traceables
 import DSMC.Util
 import DSMC.Util.Constants
 import DSMC.Util.Vector
-import Debug.Trace
+
 
 -- | Basic macroscopic parameters calculated in every cell: particle
 -- count, mean absolute velocity, mean square of thermal velocity.
@@ -119,9 +119,7 @@ makeIntensive :: Double
 makeIntensive !m !w !vol !(n, vel, c) =
   if n == 0
   then (0, (0, 0, 0), 0, 0)
-  else if (vol == 0)
-       then (Debug.Trace.trace (show "*") (0, (0, 0, 0), 0, 0))
-       else (numDens, vel, c * dens / 3, m * c / (3 * boltzmann))
+  else (numDens, vel, c * dens / 3, m * c / (3 * boltzmann))
    where
      numDens = n / vol * w
      dens = numDens * m
