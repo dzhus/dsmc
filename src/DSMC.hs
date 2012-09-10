@@ -32,7 +32,7 @@ import DSMC.Domain
 import DSMC.Macroscopic
 import DSMC.Motion
 import DSMC.Particles
-import DSMC.Surface
+import DSMC.Surface hiding (mass)
 import DSMC.Traceables hiding (trace)
 import DSMC.Util
 
@@ -129,7 +129,7 @@ simulate domain body flow
           case enough of
             False -> sim1 newState newSteady (n + 1)
             True -> do
-              (Just field) <- getField
+              (Just field) <- getField (mass flow) (statWeight flow)
               return (n, ens', field)
     in do
       -- Global seeds
