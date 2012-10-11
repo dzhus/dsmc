@@ -111,7 +111,7 @@ cellMap f !cells@(Cells _ l _ _) =
 classifyAll :: Monad m => Classifier -> Ensemble -> m (VU.Vector Int)
 classifyAll classify ens = do
   classes' <- R.computeP $ R.map classify ens
-  return $! R.toUnboxed classes'
+  return $ R.toUnboxed classes'
 
 
 -- | Classify particle ensemble into @N@ cells using the classifier
@@ -144,7 +144,7 @@ classifyParticles (cellCount, classify) ens' = runST $ do
   lengths <- VU.unsafeFreeze lengths'
 
   -- Starting positions for cells inside cell array
-  let !starts = VU.prescanl' (+) 0 lengths
+  let starts = VU.prescanl' (+) 0 lengths
 
   -- Calculate indices for particles inside classified grand vector of
   -- cell contents (inverse mapping index)
@@ -162,7 +162,7 @@ classifyParticles (cellCount, classify) ens' = runST $ do
                     (\(R.Z R.:. position) ->
                            ens VU.! (classifiedIds VU.! position))
 
-  return $! Cells (R.toUnboxed classifiedEns) cellCount starts lengths
+  return $ Cells (R.toUnboxed classifiedEns) cellCount starts lengths
 
 
 -- | Domain divided in uniform grid with given steps by X, Y and Z
