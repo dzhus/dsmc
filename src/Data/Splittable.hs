@@ -1,3 +1,9 @@
+{-|
+
+Splittable containers abstraction.
+
+-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 

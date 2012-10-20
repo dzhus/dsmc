@@ -1,5 +1,5 @@
 name:                dsmc
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            DSMC library for rarefied gas dynamics
 license:             BSD3
 license-file:        LICENSE
@@ -9,7 +9,7 @@ category:            Physics
 
 build-type:          Simple
 cabal-version:       >=1.8
-tested-with:         GHC == 7.4.1
+tested-with:         GHC == 7.6.1
 
 library
   ghc-options: -Wall -O2 -funbox-strict-fields -Odph -rtsopts -fno-liberate-case -funfolding-use-threshold1000 -funfolding-keeness-factor1000 -fllvm -optlo-O3
@@ -36,8 +36,8 @@ library
   build-depends:
     attoparsec   == 0.10.*,
     base         == 4.*,
-    bytestring   == 0.9.*,
-    containers   == 0.4.*,
+    bytestring   == 0.10.*,
+    containers   == 0.5.*,
     entropy      == 0.2.*,
     mwc-random   >= 0.12.0.1,
     parallel     == 3.2.*,
