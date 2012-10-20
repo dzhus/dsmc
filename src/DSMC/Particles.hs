@@ -53,8 +53,8 @@ data Flow = Flow { concentration :: !Double
             deriving (Show)
 
 
--- | Calculate what model concentration will simulate real flow
--- concentration wrt statistical weight of single particle.
+-- | Calculate model concentration to simulate real flow concentration
+-- wrt statistical weight of single particle as set in flow options.
 modelConcentration :: Flow -> Double
 modelConcentration flow = (concentration flow) / (statWeight flow)
 
@@ -68,16 +68,17 @@ emptyEnsemble :: Ensemble
 emptyEnsemble = fromUnboxed1 $ VU.empty
 
 
--- | Amount of particles in ensemble.
+-- | Amount of particles in an ensemble.
 ensembleSize :: Ensemble -> Int
 ensembleSize ens = n where (R.Z R.:. n) = R.extent ens
+
 
 -- | Print particles, one per row, using the format:
 --
 -- > x y z u v w
 --
 -- where @x y z@ are position coordinates and @u v w@ are velocity
--- components.
+-- components. This is handy for debugging purposes.
 printEnsemble :: Ensemble -> IO ()
 printEnsemble particles = do
   VU.forM_ (R.toUnboxed particles)
