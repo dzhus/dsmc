@@ -74,7 +74,7 @@ import DSMC.Util.Vector
 
 
 -- | Transformer which adds lookup table to underlying monad.
-type Table a k v = StateT (M.Map k v) a
+type TableT a k v = StateT (M.Map k v) a
 
 
 -- | Add entry to the lookup table.
@@ -88,7 +88,7 @@ getEntry key = liftM (M.lookup key) get
 
 
 -- | Parser with lookup table.
-type CSGParser = Table Parser String T.Body
+type CSGParser = TableT Parser String T.Body
 
 
 lp :: Parser Char
