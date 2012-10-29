@@ -10,6 +10,7 @@ module DSMC.Util
     , iforM_
     , randomSeed
     , Time
+    , DSMCRootMonad
     )
 
 where
@@ -98,3 +99,9 @@ randomSeed = toSeed <$> randomWord32Vector 256
 
 -- | Time in seconds.
 type Time = Double
+
+
+-- | Several modules define a chain of monads to maintain context of
+-- the running simulation. In its root is the IO monad which we use to
+-- send logger messages from monads atop the root.
+type DSMCRootMonad = IO

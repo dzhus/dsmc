@@ -9,14 +9,18 @@ should start after particle system has reached steady state. Samples
 are then collected in each cell for a certain number of time steps.
 
 Sampling is performed in 'MacroSamplingMonad' to ensure consistency of
-averaging process.
+averaging process. During sampling, basic parameters are calculated
+like number of molecules per cell or mean square of thermal velocity.
+After sampling these are used to derive final (intensive) parameters
+like number density or temperature.
 
 -}
 
 module DSMC.Macroscopic
     ( MacroSamples
     , MacroField
-    , MacroParameters
+    , BasicMacroParameters
+    , IntensiveMacroParameters
     -- * Macroscopic sampling monad
     , MacroSamplingMonad
     , SamplingState(..)
@@ -36,20 +40,32 @@ import qualified Data.Strict.Maybe as S
 import qualified Data.Array.Repa as R
 import qualified Data.Vector.Unboxed as VU
 
+import Control.Parallel.Stochastic
+
 import DSMC.Cells
 import DSMC.Particles
+import DSMC.Traceables
 import DSMC.Util
+import DSMC.Util.Constants
 import DSMC.Util.Vector
 
 
--- | Macroscopic parameters calculated in every cell: particle count,
--- mean absolute velocity, mean square of thermal velocity.
+-- | Basic macroscopic parameters calculated in every cell: particle
+-- count, mean absolute velocity, mean square of thermal velocity.
+--
+-- Particle count is non-integer because of averaging.
 --
 -- These are then post-processed into number density, flow velocity,
 -- pressure and translational temperature.
 --
 -- Note the lack of root on thermal velocity!
-type MacroParameters = (Double, Vec3, Double)
+type BasicMacroParameters = (Double, Vec3, Double)
+
+
+-- | Intensive macroscopic parameters available after averaging has
+-- completed. These are: number density, absolute velocity, pressure
+-- and translational temperature.
+type IntensiveMacroParameters = (Double, Vec3, Double, Double)
 
 
 -- | Vector which stores averaged macroscropic parameters in each
@@ -58,12 +74,12 @@ type MacroParameters = (Double, Vec3, Double)
 -- If samples are collected for M iterations, then this vector is
 -- built as a sum of vectors @V1, .. VM@, where @Vi@ is vector of
 -- parameters sampled on @i@-th time step divided by @M@.
-type MacroSamples = R.Array R.U R.DIM1 MacroParameters
+type MacroSamples = R.Array R.U R.DIM1 BasicMacroParameters
 
 
 -- | Array of central points of grid cells with averaged macroscopic
 -- parameters attached to every point.
-type MacroField = R.Array R.U R.DIM1 (Point, MacroParameters)
+type MacroField = R.Array R.U R.DIM1 (Point, IntensiveMacroParameters)
 
 
 -- | Monad which keeps track of sampling process data and stores
@@ -71,7 +87,9 @@ type MacroField = R.Array R.U R.DIM1 (Point, MacroParameters)
 --
 -- GridMonad is used to ensure that only safe values for cell count
 -- and classifier are used in 'updateSamples' and 'averageSamples'
--- (that may otherwise cause unbounded access errors).
+-- (that may otherwise cause unbounded access errors). Note that
+-- steady condition is not handled by this monad (instead, caller code
+-- should decide when to start averaging).
 --
 -- Inner Reader Monad stores averaging steps setting.
 type MacroSamplingMonad =
@@ -90,36 +108,67 @@ data SamplingState = None
                    -- unload the samples.
 
 
--- | Fetch macroscopic field if averaging is complete.
-getField :: MacroSamplingMonad (Maybe MacroField)
-getField = do
+makeIntensive :: Double
+              -- ^ Mass of molecule.
+              -> Double
+              -- ^ Statistical weight of a simulator particle.
+              -> Double
+              -- ^ Cell volume.
+              -> BasicMacroParameters
+              -> IntensiveMacroParameters
+makeIntensive !m !w !vol !(n, vel, c) =
+  if n == 0
+  then (0, (0, 0, 0), 0, 0)
+  else (numDens, vel, c * dens / 3, m * c / (3 * boltzmann))
+   where
+     numDens = n / vol * w
+     dens = numDens * m
+
+
+-- | Fetch macroscopic field of intensive parameters if averaging is
+-- complete.
+getField :: Double
+         -- ^ Mass of molecule.
+         -> Double
+         -- ^ Statistical weight of single molecule.
+         -> MacroSamplingMonad (Maybe MacroField)
+getField m w = do
   (cellCount, _) <- lift $ lift $ asks classifier
   ixer <- lift $ lift $ asks indexer
+  vols <- lift $ lift $ asks volumes
   res <- get
   case res of
     Complete samples -> do
              let centralPoints = R.fromFunction (R.ix1 $ cellCount)
                                  (\(R.Z R.:. cellNumber) -> ixer cellNumber)
-             f <- R.computeP $ R.zipWith (,) centralPoints samples
+                 realSamples = R.zipWith
+                               (makeIntensive m w)
+                               (fromUnboxed1 vols)
+                               samples
+             f <- R.computeP $ R.zipWith (,) centralPoints realSamples
              return $ Just f
     _ -> return $ Nothing
 
 
 -- | Parameters in empty cell.
-emptySample :: MacroParameters
+emptySample :: BasicMacroParameters
 emptySample = (0, (0, 0, 0), 0)
 
 
 -- | Run 'MacroSamplingMonad' action with given sampling options and
 -- return final 'Complete' state with macroscopic samples.
 runMacroSampling :: MacroSamplingMonad r
+                 -> ParallelSeeds
                  -> Grid
                  -- ^ Grid used to sample macroscopic parameters.
+                 -> Body
+                 -> Int
+                 -- ^ Use that many points to approximate every cell volume.
                  -> Int
                  -- ^ Averaging steps count.
-                 -> (r, SamplingState)
-runMacroSampling f subdiv ssteps = 
-    runGrid (runReaderT (runStateT f None) ssteps) subdiv
+                 -> DSMCRootMonad (r, SamplingState)
+runMacroSampling f seeds grid body testPoints ssteps = 
+    runGrid (runReaderT (runStateT f None) ssteps) seeds grid body testPoints
 
 
 -- | Create empty 'MacroSamples' array.
@@ -136,9 +185,9 @@ updateSamples :: Ensemble
               -> MacroSamplingMonad Bool
 updateSamples ens =
     let
-        addCellParameters :: MacroParameters
-                          -> MacroParameters
-                          -> MacroParameters
+        addCellParameters :: BasicMacroParameters
+                          -> BasicMacroParameters
+                          -> BasicMacroParameters
         addCellParameters !(n1, v1, c1) !(n2, v2, c2) =
             (n1 + n2, v1 <+> v2, c1 + c2)
     in do
@@ -181,7 +230,7 @@ sampleMacroscopic :: S.Maybe CellContents
                   -- which is the statistical weight of one sample.
                   -- Typically this is inverse to the amount of steps
                   -- used for averaging.
-                  -> MacroParameters
+                  -> BasicMacroParameters
 sampleMacroscopic !c !weight =
     case c of
       S.Nothing -> emptySample
@@ -191,10 +240,8 @@ sampleMacroscopic !c !weight =
               n = fromIntegral $ VU.length ens
               -- Particle averaging factor
               s = 1 / n
-              -- Velocities factor
-              sv = s * weight
               -- Mean absolute velocity
-              m1 = (VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens) .^ sv
+              m1 = (VU.foldl' (\v0 (_, v) -> v0 <+> v) (0, 0, 0) ens) .^ s
               -- Mean square thermal velocity
               c2 = (VU.foldl' (+) 0 $
                       VU.map (\(_, v) ->
@@ -202,6 +249,6 @@ sampleMacroscopic !c !weight =
                                     thrm = (v <-> m1)
                                   in
                                     (thrm .* thrm))
-                      ens) * sv
+                      ens) * s
           in
-            (n * weight, m1, c2)
+            (n * weight, m1 .^ weight, c2 * weight)

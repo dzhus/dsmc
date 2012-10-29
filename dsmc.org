@@ -1,5 +1,16 @@
 #+SEQ_TODO: MAYBE TODO IN_PROGRESS | DONE
 
+* IO
+  We start a chain of DSMC monads from IO. Rationale:
+
+  - logging
+  - simulate is IO action anyways (entropy)
+
+* DSMC options
+  Perhaps we should root the monad chain in Reader for all the DSMC
+  options. We don't want them to change during the simulation and
+  having to pass lots of recurring function arguments is boring
+  anyways: `getField`, `runMacroSampling` etc.
 * CSG
 
 ** Boundary conditions
@@ -123,7 +134,7 @@
    последовательная при этом ещё и смещения сразу определяет).
 
 ** Типы
-  http://www.haskell.org/haskellwiki/Performance/Datatypes   
+   http://www.haskell.org/haskellwiki/Performance/Datatypes   
 *** DONE Быстрые вектора
     CLOSED: [2012-06-06 Ср. 21:29]
     Строгие типы + unboxing
