@@ -211,9 +211,11 @@
    domains are finished. This time may be used to sample macroscopic
    parameters from the previous step instead!
 * Other issues
-** Derivable Unbox
+** TODO Derivable Unbox
    We want derivable unbox instances for our ADTs, this would allow
    for an expressive typing of Particle instead of 6-tuple.
+
+   GeneralizedNewtypeDeriving was introduced in GHC 7.5.4.
 ** freeVolumes
    Cell volumes calculation routine.
 *** Type
