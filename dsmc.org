@@ -181,7 +181,7 @@
      - [ ] What if task is sufficiently small to have less possible
        chunks than number of seeds available?
 
-*** Possible solutions
+*** Further work
     1. Split & Combine typeclasses for containers with data which may
        be splitted, processed in parallel using given seeds, and then
        combined back together. Somehow we need to enforce split &
@@ -198,6 +198,9 @@
        allow to perform stochastic mapping (perhaps in special monad
        which keeps track of seeds being used for sampling). We need to
        somehow get access to scheduling internals of Repa.
+
+       Someone else stumbled upon the same issue:
+       http://stackoverflow.com/questions/11230895/parallel-mapm-on-repa-arrays
   
 ** MAYBE LinearSplit
    http://hackage.haskell.org/package/LinearSplit
