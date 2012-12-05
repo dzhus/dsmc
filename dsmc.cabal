@@ -1,6 +1,7 @@
 name:                dsmc
 version:             0.1.0.1
 synopsis:            DSMC library for rarefied gas dynamics
+homepage:            http://github.com/dzhus/dsmc/
 license:             BSD3
 license-file:        LICENSE
 author:              Dmitry Dzhus
@@ -10,6 +11,10 @@ category:            Physics
 build-type:          Simple
 cabal-version:       >=1.8
 tested-with:         GHC == 7.6.1
+
+source-repository head
+  type:     git
+  location: http://github.com/dzhus/dsmc/
 
 library
   ghc-options: -Wall -O2 -funbox-strict-fields -Odph -rtsopts -fno-liberate-case -funfolding-use-threshold1000 -funfolding-keeness-factor1000 -fllvm -optlo-O3
