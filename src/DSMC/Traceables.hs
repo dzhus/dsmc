@@ -54,7 +54,8 @@ import DSMC.Util.Vector
 -- If hit is in infinity, then normal is Nothing.
 --
 -- Note that this datatype is strict only on first argument: we do not
--- compare normals when classifying traces.
+-- compare normals when classifying traces and thus do not force
+-- calculation of normals.
 data HitPoint = HitPoint !Double (Maybe Vec3)
                 deriving (Eq, Ord, Show)
 
@@ -107,7 +108,7 @@ type HitSegment = (Pair HitPoint HitPoint)
 -- may be done by substituting the equation of trajectory @X(t) = X_o
 -- + V*t@ into the equation which defines the surface and solving it
 -- for @t@. If the body is a composition, traces from primitives are
--- then classified according to operators used to define the body
+-- then classified according to operations used to define the body
 -- (union, intersection or complement).
 --
 -- Although only convex primitives are used in current implementation,
@@ -150,7 +151,7 @@ type HitSegment = (Pair HitPoint HitPoint)
 -- >                                 # - particle
 --
 -- If only intersections of concave primitives were allowed, then
--- trace type might be simplified to be just single 'HitSegment'.
+-- trace type might be simplified to be just a single 'HitSegment'.
 type Trace = [HitSegment]
 
 
@@ -175,18 +176,19 @@ hitP = (HitPoint infinityP Nothing)
 -- | CSG body is a recursive composition of primitive objects or other
 -- bodies.
 data Body = Plane !Vec3 !Double
-          -- ^ Half-space with normalized outward normal and distance
-          -- of boundary plane from origin.
+          -- ^ Half-space defined by a unit outward normal and a
+          -- distance of boundary plane from the origin.
           | Sphere !Vec3 !Double
-          -- ^ Sphere defined by center and radius.
+          -- ^ Sphere defined by a center point and a radius.
           | Cylinder !Vec3 !Point !Double
-          -- ^ Infinite circular cylinder with normalized axis vector,
-          -- point on axis and radius.
+          -- ^ Infinite circular cylinder defined by a normalized axis
+          -- vector, a point on axis and a radius.
           | Cone !Vec3 !Point !Double !Matrix !Double !Double
-          -- ^ Cone defined by inward axis direction, vertex and
-          -- cosine to angle h between axis and outer edge.
+          -- ^ Cone defined by an inward axis direction, a vertex and
+          -- a cosine to the angle h between the axis and the
+          -- generatrix.
           --
-          -- Additionally transformation matrix $n * n - cos^2 h$,
+          -- Additionally, a transformation matrix $n * n - cos^2 h$,
           -- tangent of angle and odelta are stored for intersection
           -- calculations.
           | Union !Body !Body
@@ -195,27 +197,27 @@ data Body = Plane !Vec3 !Double
             deriving Show
 
 
--- | A half-space defined by arbitary point on the boundary plane and
--- outward normal (not necessarily a unit vector).
+-- | A half-space defined by an arbitary point on the boundary plane
+-- and an outward normal (not necessarily a unit vector).
 plane :: Point -> Vec3 -> Body
 plane p n = Plane nn (p .* nn)
             where
               nn = normalize n
 
 
--- | A sphere defined by center point and radius.
+-- | A sphere defined by a center point and a radius.
 sphere :: Vec3 -> Double -> Body
 sphere o r = Sphere o r
 
 
--- | An infinite circular cylinder defined by two arbitary
--- points on axis and radius.
+-- | An infinite circular cylinder defined by two arbitary points on
+-- axis and a radius.
 cylinder :: Point -> Point -> Double -> Body
 cylinder p1 p2 r = Cylinder (normalize $ p2 <-> p1) p1 r
 
 
 -- | A finite right circular cylinder defined by two points on its top
--- and bottom and radius.
+-- and bottom and a radius.
 cylinderFrustum :: Point -> Point -> Double -> Body
 cylinderFrustum pb pt r =
     intersect (plane pt axis)
@@ -225,17 +227,18 @@ cylinderFrustum pb pt r =
       axis = pt <-> pb
 
 
--- | An infinite right circular cone defined by outward axis vector,
--- apex point and angle between generatrix and axis (in degrees, less
--- than 90).
+-- | An infinite right circular cone defined by an outward axis
+-- vector, an apex point and an angle between the generatrix and the
+-- axis (in degrees, less than 90).
 cone :: Vec3 -> Point -> Double -> Body
 cone a o h =
     let
-        h' = cos $ (h * pi / 180)
+        rads = h * pi / 180
+        h' = cos rads
         n = normalize $ invert a
         gamma = diag (-h' * h')
         m = addM (n `vxv` n) gamma
-        ta = tan $ h
+        ta = tan rads
         odelta = n .* o
     in
       Cone n o h' m ta odelta
@@ -380,6 +383,7 @@ trace !(Complement b) !p =
     complementTrace $ trace b p
 
 
+-- | Union of two traces.
 uniteTraces :: Trace -> Trace -> Trace
 uniteTraces u [] = u
 uniteTraces u (v:t2) =
@@ -398,6 +402,7 @@ uniteTraces u (v:t2) =
 {-# INLINE uniteTraces #-}
 
 
+-- | Intersection of two traces.
 intersectTraces :: Trace -> Trace -> Trace
 intersectTraces tr1 tr2 =
     let
@@ -421,7 +426,7 @@ intersectTraces tr1 tr2 =
 {-# INLINE intersectTraces #-}
 
 
--- | Complement to trace (normals flipped) in @R^3@.
+-- | Complement to a trace (normals flipped).
 complementTrace :: Trace -> Trace
 complementTrace ((sp@(HitPoint ts _) :!: ep):xs) =
     start ++ (complementTrace' ep xs)
@@ -436,8 +441,8 @@ complementTrace ((sp@(HitPoint ts _) :!: ep):xs) =
               else [flipNormals $ hitN :!: sp]
       complementTrace' :: HitPoint -> Trace -> Trace
       complementTrace' c ((a :!: b):tr) =
-          -- Bridge between last point of previous segment and first
-          -- point of the next one.
+          -- Bridge between the last point of the previous segment and
+          -- the first point of the next one.
           (flipNormals (c :!: a)):(complementTrace' b tr)
       complementTrace' a@(HitPoint t _) [] =
           -- End in infinity if last hitpoint is finite
