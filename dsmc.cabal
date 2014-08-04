@@ -1,5 +1,5 @@
 name:                dsmc
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            DSMC library for rarefied gas dynamics
 homepage:            http://github.com/dzhus/dsmc/
 license:             BSD3
@@ -17,7 +17,7 @@ source-repository head
   location: http://github.com/dzhus/dsmc/
 
 library
-  ghc-options: -Wall -O2 -funbox-strict-fields -Odph -rtsopts -fno-liberate-case -funfolding-use-threshold1000 -funfolding-keeness-factor1000 -fllvm -optlo-O3
+  ghc-options: -Wall -O2 -funbox-strict-fields -Odph -rtsopts -threaded -fno-liberate-case -funfolding-use-threshold1000 -funfolding-keeness-factor1000 -fllvm -optlo-O3
   hs-source-dirs: src
 
   exposed-modules:
@@ -45,10 +45,10 @@ library
     containers   == 0.5.*,
     entropy      == 0.2.*,
     hslogger     == 1.2.*,
-    mwc-random   == 0.12.*,
+    mwc-random   >= 0.13.1.1 && < 0.14,
     parallel     == 3.2.*,
     primitive    == 0.5.*,
-    repa         == 3.2.*,
+    repa         >= 3.2 && < 3.3,
     strict       == 0.3.*,
-    transformers == 0.3.*,
+    transformers >= 0.3 && < 0.5,
     vector       == 0.10.*
